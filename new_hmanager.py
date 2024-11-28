@@ -275,6 +275,8 @@ class HypothesisManager:
 
 class DataloaderManager:
     def __init__(self, args, hmanager, split, preshuffle):
+        self.h_prefix_format = args.h_prefix_format
+        
         self.hmanager = hmanager
         self.split = split
         self.preshuffle = preshuffle
@@ -594,7 +596,7 @@ class DataloaderManager:
                 spH_prefix_zmask.extend([0.0               ] * 2)
                 spH_prefix_hmask.extend([0.0               ] * 2)
                 spH_prefix_smask.extend([1.0               ] * 2)
-                if args.h_prefix_format == 1:
+                if self.h_prefix_format == 1:
                     spH_prefix      .extend([h[-1]] + [self.tokens['>']] * 1)
                     spH_prefix_xmask.extend([0.0  ] + [0.0             ] * 1)
                     spH_prefix_ymask.extend([0.0  ] + [0.0             ] * 1)
@@ -625,7 +627,7 @@ class DataloaderManager:
                 spH_prefix_hmask.extend(xy_seq_hmask[:-1])
                 spH_prefix_smask.extend(xy_seq_smask[:-1])
                 # add index to the prefix
-                if args.h_prefix_format == 0:
+                if self.h_prefix_format == 0:
                     spH_prefix      .extend([self.tokens['>']] * 1 + [h[-1]])
                     spH_prefix_xmask.extend([0.0             ] * 1 + [0.0  ])
                     spH_prefix_ymask.extend([0.0             ] * 1 + [0.0  ])

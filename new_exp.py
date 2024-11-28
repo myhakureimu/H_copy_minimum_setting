@@ -453,7 +453,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'Nov26 context=normal {args.split_based_on} num_x={args.num_x} num_y={args.num_y}',
+            project= f'FinalConnect icl=iid {args.split_based_on} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
@@ -466,6 +466,7 @@ if 1:
                 'icl_k': args.icl_k,
                 'loss_on': args.loss_on,
                 'icl_sampling': args.icl_sampling,
+                'h_prefix_format': args.h_prefix_format,
                 'mix_prob_train1': args.mix_prob_train1,
 
                 #'num_training_tables': args.num_training_tables,
