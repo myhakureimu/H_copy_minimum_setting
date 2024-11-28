@@ -453,7 +453,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'FinalConnect icl=iid {args.split_based_on} num_x={args.num_x} num_y={args.num_y}',
+            project= f'LongExplore {args.split_based_on} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
