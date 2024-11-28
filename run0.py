@@ -15,13 +15,10 @@ batch_size_list = [32]
 modelName_list = ['dual']#, 'nano']
 
 loss_on_list = ['all']#, 'icl\&\>z', 'y\&z', 'z']
-<<<<<<< HEAD
 
 icl_sampling_list = ['iid']
 
 h_prefix_format_list = [0,1]
-=======
->>>>>>> d967176 (nothing)
 
 for lr in lr_list:
     for wd in wd_list:
