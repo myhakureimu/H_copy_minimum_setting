@@ -41,9 +41,9 @@ parser.add_argument('--split_based_on', default='table', type=str)
 
 # H+ICL format for dataloadermanager
 parser.add_argument('--icl_k', default=4, type=int)
-parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'],
-                    help = 'all=prefix&icl&z, icl=x&y&>')
-parser.add_argument('--icl_sampling', default='normal', type=str, choices = ['normal', 'optimal', 'mix'])
+parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
+parser.add_argument('--icl_sampling', default='ordered', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
+parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)  
 
 # model setting

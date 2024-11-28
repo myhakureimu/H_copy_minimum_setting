@@ -14,6 +14,7 @@ def repeat_list_to_length(lst, K):
 
 class HypothesisManager:
     def __init__(self, args, table_lengths, split_ratio, train_info, test__info):
+        self.h_prefix_format = args.h_prefix_format
         self.random_seed = args.random_seed
 
         #self.mode = 'binary'
@@ -107,6 +108,9 @@ class HypothesisManager:
         token_index += 1
         self.tokens[','] = token_index # [num_y+num_x+1]
         token_index += 1
+        if self.h_prefix_format == 1:
+            self.tokens[':'] = token_index # [num_y+num_x+1]
+            token_index += 1
 
         self.tokens['hH_Z'] = [] # [num_y+num_x+2, num_y+num_x+1+max_table_length]
         for i in range(self.max_table_length):
@@ -312,8 +316,8 @@ class DataloaderManager:
                 I_list.append(torch.tensor(I))
                 hH_idx_list.append(hH_idx)
 
-                if self.icl_sampling == 'normal':
-                    xy_seq_info = generate_sequence_normal(h)
+                if self.icl_sampling in ['ordered', 'permutation', 'iid']:
+                    xy_seq_info = generate_sequence_normal(h, self.icl_sampling)
                 # elif self.icl_sampling == 'optimal':
                 #     xy_seq, mask_sequence = generate_sequence_optimal(h, i, self.y_mask_value)
                 # elif self.icl_sampling == 'test':
@@ -371,13 +375,17 @@ class DataloaderManager:
                     }
 
         # Helper functions for generating sequences
-        def generate_sequence_normal(h): # output dictionary of tensor
+        def generate_sequence_normal(h, icl_sampling): # output dictionary of tensor
             x_seq = []
             y_seq = []
-            ### for copy        position_indices = np.arange(self.num_x)
-            ### fpr permutation position_indices = np.random.permutation(np.arange(self.num_x))
-            ### for normal      
-            position_indices = np.random.choice(self.num_x, size=self.icl_k, replace=True)
+            if icl_sampling == 'ordered':
+                position_indices = np.arange(self.num_x)
+            elif icl_sampling == 'permutation':
+                position_indices = np.random.permutation(np.arange(self.num_x))
+            elif icl_sampling == 'iid':   
+                position_indices = np.random.choice(self.num_x, size=self.icl_k, replace=True)
+            else:
+                raise Exception(f'wrong if icl_sampling == {icl_sampling}')
             # print('position_indices =', position_indices)
             for position_index in position_indices:
                 x = self.tokens['xs'][position_index]
@@ -586,6 +594,13 @@ class DataloaderManager:
                 spH_prefix_zmask.extend([0.0               ] * 2)
                 spH_prefix_hmask.extend([0.0               ] * 2)
                 spH_prefix_smask.extend([1.0               ] * 2)
+                if args.h_prefix_format == 1:
+                    spH_prefix      .extend([h[-1]] + [self.tokens['>']] * 1)
+                    spH_prefix_xmask.extend([0.0  ] + [0.0             ] * 1)
+                    spH_prefix_ymask.extend([0.0  ] + [0.0             ] * 1)
+                    spH_prefix_zmask.extend([0.0  ] + [0.0             ] * 1)
+                    spH_prefix_hmask.extend([1.0  ] + [0.0             ] * 1)
+                    spH_prefix_smask.extend([0.0  ] + [1.0             ] * 1)
                 # Generate interleaved x, y sequence for this hypothesis
                 x_seq = [self.tokens['xs'][x_index] for x_index in range(n-1)]
                 y_seq = [self.tokens['ys'][y_index] for y_index in h[:-1].tolist()]
@@ -610,12 +625,13 @@ class DataloaderManager:
                 spH_prefix_hmask.extend(xy_seq_hmask[:-1])
                 spH_prefix_smask.extend(xy_seq_smask[:-1])
                 # add index to the prefix
-                spH_prefix      .extend([self.tokens['>']] * 1 + [h[-1]])
-                spH_prefix_xmask.extend([0.0             ] * 1 + [0.0  ])
-                spH_prefix_ymask.extend([0.0             ] * 1 + [0.0  ])
-                spH_prefix_zmask.extend([0.0             ] * 1 + [0.0  ])
-                spH_prefix_hmask.extend([0.0             ] * 1 + [1.0  ])
-                spH_prefix_smask.extend([1.0             ] * 1 + [0.0  ])
+                if args.h_prefix_format == 0:
+                    spH_prefix      .extend([self.tokens['>']] * 1 + [h[-1]])
+                    spH_prefix_xmask.extend([0.0             ] * 1 + [0.0  ])
+                    spH_prefix_ymask.extend([0.0             ] * 1 + [0.0  ])
+                    spH_prefix_zmask.extend([0.0             ] * 1 + [0.0  ])
+                    spH_prefix_hmask.extend([0.0             ] * 1 + [1.0  ])
+                    spH_prefix_smask.extend([1.0             ] * 1 + [0.0  ])
             
             spH_prefix = spH_prefix + [self.tokens['pad']] * 4
             spH_prefix_xmask.extend(  [0.0               ] * 4)
@@ -720,9 +736,9 @@ if __name__ == '__main__':
     args.random_seed = 2023
 
     ### hmanager
-    args.num_x = 4
+    args.num_x = 2
     args.num_y = 2
-    args.max_table_length = 4
+    args.max_table_length = 2
     # table_lengths
     args.split_based_on = 'table'
     # split_ratio
@@ -733,7 +749,8 @@ if __name__ == '__main__':
     split = 'train'
 
     args.icl_k = 2
-    args.icl_sampling = 'normal'
+    args.icl_sampling = 'ordered'
+    args.h_prefix_format = 1
     args.mix_prob_train1 = 0.5  # Probability for 'mix' mode
 
     args.batch_size = 2  # Number of samples per batch
