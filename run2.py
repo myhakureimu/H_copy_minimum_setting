@@ -1,16 +1,16 @@
 import numpy as np
 import os
-gpuIdxStr = '2'
+gpuIdxStr = '0'
 
-random_seed = 2023+int(gpuIdxStr)
+random_seed = 2025+int(gpuIdxStr)
 
-prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 768'
+prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 512'
 
-lr_list = [0.00002, 0.00005, 0.00010]
+lr_list = [0.00002]#, 0.00005, 0.00010]
 
 wd_list = [0.0005] #[0.0002, 0.0005]
 
-batch_size_list = [16, 32, 64]
+batch_size_list = [16]#, 32, 64]
 
 modelName_list = ['dual']#, 'nano']
 

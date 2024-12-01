@@ -17,7 +17,7 @@ matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
 
 # environment setting
 parser = argparse.ArgumentParser(description='PyTorch In-context Learning Training Code')
-parser.add_argument('--gpu', default='3', type=str, help='which gpus to use')
+parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
 parser.add_argument('--wandb', default=0, type=int)
 
@@ -29,10 +29,10 @@ parser.add_argument('--wandb', default=0, type=int)
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=4, type=int)
+parser.add_argument('--num_x', default=2, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 ''' # parser.add_argument('--num_training_tables', default=0, type=int) '''
-parser.add_argument('--max_table_length', default=4, type=int)
+parser.add_argument('--max_table_length', default=2, type=int)
 # table_lengths
 parser.add_argument('--split_based_on', default='table', type=str)
 # split_ratio
@@ -40,9 +40,9 @@ parser.add_argument('--split_based_on', default='table', type=str)
 # test__info
 
 # H+ICL format for dataloadermanager
-parser.add_argument('--icl_k', default=4, type=int)
+parser.add_argument('--icl_k', default=2, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
-parser.add_argument('--icl_sampling', default='ordered', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
+parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)  
 
@@ -55,16 +55,16 @@ parser.add_argument('--embed_dim', default=128, type=int, help='embedding dimens
 parser.add_argument('--llm_max_length', default=256, type=int, help='maximum sequence length of the input (default: 11)')
 
 #optimization
-parser.add_argument('--lr', default=0.0005, type=float, help='initial model learning rate') #0.0005
-parser.add_argument('--wd', default=0.0001, type=float, help='weight decay hyperparameter (default: 0.00001)') #0.1
-parser.add_argument('--batch_size', default=32, type=int, help='mini-batch size (default: 64)') #32
+parser.add_argument('--lr', default=0.00002, type=float, help='initial model learning rate') #0.0005
+parser.add_argument('--wd', default=0.0005, type=float, help='weight decay hyperparameter (default: 0.00001)') #0.1
+parser.add_argument('--batch_size', default=16, type=int, help='mini-batch size (default: 64)') #32
 parser.add_argument('--n_steps', default=512, type=int, help='total number of training steps we want to run')
-parser.add_argument('--epochs', default=128, type=int, help='number of total epochs to run')
+parser.add_argument('--epochs', default=1, type=int, help='number of total epochs to run')
 
 parser.set_defaults(augment=True)
 args = parser.parse_args()
 
-args.n_steps = int(32*512/args.batch_size)
+args.n_steps = int(32*512/args.batch_size)//8
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 setproctitle.setproctitle(f'{args.split_based_on}')
@@ -145,15 +145,17 @@ def pad4input(xy_batch, mask_batch, h_prefix, h_prefix_mask, pad_token):
 
     return hxy, mask
 
-
-train_strings = {}
-test__strings = {}
+strings = {}
+strings['train'] = {}
+strings['test_'] = {}
 def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     wandb_info = {}
     if phase not in ['train', 'test_']:
         raise Exception(f'phase = {phase} is not valid')
-
+    icl_sampling = dmanager.icl_sampling
     dataloader = dmanager.get_pytorch_dataloader()
+    int2token = dmanager.hmanager.int2token
+    #print(int2token)
 
     loss_f = torch.nn.CrossEntropyLoss(reduction = 'none')
     
@@ -173,8 +175,8 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
         batch_acch = AverageMeter(table_lengths)
         model.eval()
     
-
-    if phase == 'train':
+    context = torch.enable_grad() if phase == 'train' else torch.no_grad()
+    with context:
         for batch in (pbar := tqdm(dataloader)):
             table_length_batch = [H.shape[0] for H in batch['H_list']]
 
@@ -191,7 +193,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             xy_seq_zmask = torch.stack(batch['xy_seq_list_info']['xy_seq_zmask_list']).cuda().to(torch.float32)
             xy_seq_hmask = torch.stack(batch['xy_seq_list_info']['xy_seq_hmask_list']).cuda().to(torch.float32)
             xy_seq_smask = torch.stack(batch['xy_seq_list_info']['xy_seq_smask_list']).cuda().to(torch.float32)
-            
+
             z_suffix       = torch.stack(batch['z_suffix_list_info']['z_suffix_list'      ]).cuda().to(torch.long)
             z_suffix_xmask = torch.stack(batch['z_suffix_list_info']['z_suffix_xmask_list']).cuda().to(torch.float32)
             z_suffix_ymask = torch.stack(batch['z_suffix_list_info']['z_suffix_ymask_list']).cuda().to(torch.float32)
@@ -200,6 +202,25 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             z_suffix_smask = torch.stack(batch['z_suffix_list_info']['z_suffix_smask_list']).cuda().to(torch.float32)
 
             all_seq = torch.cat([spH_prefix, xy_seq, z_suffix], dim=1)
+
+            for i in range(len(all_seq)):
+                tokens = [int2token[x] for x in list(spH_prefix[i].cpu().numpy())]
+                spH_prefix_str = '-'.join(tokens)
+                if spH_prefix_str not in strings[phase].keys():
+                    strings[phase][spH_prefix_str] = {}
+                
+                tokens = [int2token[x] for x in list(z_suffix  [i].cpu().numpy())]
+                z_suffix_str = '-'.join(tokens)
+                if z_suffix_str   not in strings[phase][spH_prefix_str].keys():
+                    strings[phase][spH_prefix_str][z_suffix_str] = {}
+                
+                tokens = [int2token[x] for x in list(xy_seq    [i].cpu().numpy())]
+                xy_seq_str = '-'.join(tokens)
+                if xy_seq_str     not in strings[phase][spH_prefix_str][z_suffix_str].keys():
+                    strings[phase][spH_prefix_str][z_suffix_str][xy_seq_str] = {}
+
+
+            
             i_seq = all_seq[:, :-1]
             o_seq = all_seq[:, 1:]
 
@@ -227,11 +248,12 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             losses_mask = losses_mask[:, 1:]
             loss = torch.sum(losses*losses_mask)/torch.sum(losses_mask)
 
-            # Backpropagate gradients and update model
-            optimizer.zero_grad()
-            model.zero_grad()
-            loss.backward()
-            optimizer.step()
+            if phase == 'train':
+                # Backpropagate gradients and update model
+                optimizer.zero_grad()
+                model.zero_grad()
+                loss.backward()
+                optimizer.step()
 
             with torch.no_grad():
                 loss_per_h  = torch.sum(losses*losses_mask, dim=1)
@@ -264,70 +286,19 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_z.update(table_length_batch, correct_z_per_h.data, count_z_per_h)
             batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
-
-            pbar.set_description(f"train loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
+            
+            pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
             #pbar.set_description(f"train {len(train_strings)}")
 
         wandb_info={}
         for table_length in table_lengths:
-            wandb_info[f"train/loss_{table_length}"]  = batch_loss.avg[table_length]
-            wandb_info[f"train/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
-            wandb_info[f"train/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
-            wandb_info[f"train/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
-            wandb_info[f"train/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
-            wandb_info[f"train/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}/loss_{table_length}"]  = batch_loss.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
         
-        # print(f'train/loss:')
-        # print(batch_loss.avg)
-        # print(f'train/acc_y:')
-        # print(batch_acc_y.avg[0])
-        # print(f'train/acc_z:')
-        # print(batch_acc_z.avg[0])
-
-    if phase in ['test1', 'test2', 'test4', 'test8']:
-        with torch.no_grad():
-            for xy_batch, mask_batch, h_prefix, h_prefix_mask, h_batch, i_batch, h_matrices_tensor, i_matrices_tensor in (pbar := tqdm(dataloader)):
-                table_length_batch = [h_matrice.shape[0] for h_matrice in h_matrices_tensor]
-                #xy_batch, mask_batch, h_prefix, h_prefix_mask = xy_batch.cuda(), mask_batch.cuda(), h_prefix.cuda(), h_prefix_mask.cuda()
-                if 1:
-                    hxy, mask = pad4input(xy_batch, mask_batch, h_prefix, h_prefix_mask, hmanager.n)
-                else:
-                    raise Exception('we now wokring on H, we need h_prefix!')
-                hxy, mask = hxy.cuda(), mask.cuda()
-
-                input_seqs = hxy[:, :-1]
-                label_seqs = hxy[:, 1:]
-                mask_seqs = mask[:, 1:]
-
-                # print(mask_seqs[0])
-                # print(mask_seqs[0][print_index])
-                # A = mask_seqs[0].clone()
-                # A[print_index] = 2
-                # print(A)
-
-                pred_seqs = model.forward(input_seqs)
-                
-                correct = (torch.argmax(pred_seqs, dim=2) == label_seqs)
-                with torch.no_grad():
-                    correct_per_h = torch.sum(correct*mask_seqs, dim=1)
-                    count_per_h = torch.sum(mask_seqs, dim=1)
-                    correct_h = ((torch.sum(correct_per_h)/torch.sum(count_per_h)) == 1)
-                
-                batch_acc_.update(table_length_batch, correct_per_h.data, count_per_h)
-                batch_acch.update(table_length_batch[:1], [correct_h], count_per_h[:1])
-
-            wandb_info={}
-            for table_length in table_lengths:
-                wandb_info[method+f"({split})/acc_{table_length}"] = batch_acc_.avg[table_length]
-                wandb_info[method+f"({split})/acch{table_length}"] = batch_acch.avg[table_length]
-
-            print(method+f"({split})/acc_")
-            print(batch_acc_.avg)
-            print(method+f"({split})/acch")
-            print(batch_acch.avg)
-
-            pbar.set_description(f"test({split}) {batch_acc_.avg[0]:.3f} {batch_acch.avg[0]:.3f}")
-
     return wandb_info
 
 
@@ -368,9 +339,9 @@ if 1:
             test__info = {3: 0}  # Number of test tables to sample per length
         if args.num_x == 4:
             table_lengths = [4]
-            split_ratio = [1.0, 0.0]  # Ratios for train and test splits
-            train_info = {4: 1820}  # Number of train tables to sample per length
-            test__info = {4: 0}  # Number of test tables to sample per length
+            split_ratio = [0.7, 0.3]  # Ratios for train and test splits
+            train_info = {4: 1274}  # Number of train tables to sample per length
+            test__info = {4: 526}  # Number of test tables to sample per length
         if args.num_x == 5:
             table_lengths = [4]
             split_ratio = [0.7, 0.3]  # Ratios for train and test splits
@@ -434,13 +405,22 @@ if 1:
         args,
         hmanager = hmanager,
         split = 'train',
-        preshuffle = True
+        preshuffle = True,
+        icl_sampling = args.icl_sampling
     )
     test__dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
         split = 'train',
-        preshuffle = True
+        preshuffle = True,
+        icl_sampling = args.icl_sampling
+    )
+    opt___dmanager = DataloaderManager(
+        args,
+        hmanager = hmanager,
+        split = 'train',
+        preshuffle = True,
+        icl_sampling = 'optimal'
     )
 
     # wandb
@@ -453,7 +433,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'LongExplore {args.split_based_on} num_x={args.num_x} num_y={args.num_y}',
+            project= f'Test OPT icl=iid {args.split_based_on} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
@@ -548,62 +528,33 @@ if 1:
     #     wandb_valid_info['global_step'] = epoch
     #     wandb.log(wandb_valid_info)
                 
-    for epoch in range(1, args.epochs+1):
+    for epoch in range(0, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
         #print(model._read_out.weight.data)
-        if 1: #train
+        if 1:#epoch!=0: #train
             phase = 'train'
             wandb_train_info = train_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
                 wandb_train_info['global_step'] = epoch
                 wandb.log(wandb_train_info, step=epoch, commit=False)
 
+        if 1:#epoch%8 == 0:
+            phase = 'test_'
+            wandb_valid_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
+            if args.wandb:
+                wandb_valid_info['global_step'] = epoch
+                wandb.log(wandb_valid_info, step=epoch, commit=False)
+
+        import pickle 
+
+        with open('strings.pkl', 'wb') as f:
+            pickle.dump(strings, f)
+
         if 0:
             phase = 'test_'
-            wandb_valid_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
+            wandb_valid_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
                 wandb_valid_info['global_step'] = epoch
                 wandb.log(wandb_valid_info, step=epoch, commit=False)
             
-            #if epoch % 10 == 0:
-            #    state = {"model_state_dict": model.state_dict(), 
-            #             "optimizer_state_dict": optimizer.state_dict(),
-            #             "train_epoch": epoch}
-            #    torch.save(state, state_file)
-
-        # for key in train_strings.keys():
-        #     if key not in test__strings.keys():
-        #         print(key)
-
-        if 0: #evaluation
-            split = 'train'
-            method = 'test1'
-            wandb_valid_info = train_model(args, table_lengths, method, split, hmanager, model, optimizer, epoch=epoch)
-            if args.wandb:
-                wandb_valid_info['global_step'] = epoch
-                wandb.log(wandb_valid_info, step=epoch, commit=False)
-
-
-            split = 'test'
-            method = 'test1'
-            wandb_valid_info = train_model(args, table_lengths, method, split, hmanager, model, optimizer, epoch=epoch)
-            if args.wandb:
-                wandb_valid_info['global_step'] = epoch
-                wandb.log(wandb_valid_info, step=epoch, commit=True)
-            
-            # method = 'test2'
-            # wandb_valid_info = train_model(args, method, split, hmanager, model, optimizer, epoch=epoch)
-            # if args.wandb:
-            #     wandb_valid_info['global_step'] = epoch
-            #     wandb.log(wandb_valid_info, step=epoch, commit=True)
-
-            # method = 'test4'
-            # wandb_valid_info = train_model(args, method, split, hmanager, model, optimizer, epoch=epoch)
-            # if args.wandb:
-            #     wandb_valid_info['global_step'] = epoch
-            #     wandb.log(wandb_valid_info, step=epoch, commit=True)
-         
-        # import pickle
-        # exp_record_folder = folder + 'exp_record'
-        # with open(exp_record_folder +'.pkl', 'wb') as file:
-        #     pickle.dump(exp_record, file)
+          

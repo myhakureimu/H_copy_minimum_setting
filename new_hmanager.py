@@ -116,6 +116,14 @@ class HypothesisManager:
         for i in range(self.max_table_length):
             self.tokens[f'hH_Z'].append(token_index)
             token_index += 1
+        
+        self.int2token = {}
+        for k, v in self.tokens.items():
+            if isinstance(v, list):
+                for i, item in enumerate(v):
+                   self.int2token[item] = k+str(i)
+            else:
+                self.int2token[v] = k
 
     def _generate_all_hypotheses(self):
         """
@@ -274,7 +282,7 @@ class HypothesisManager:
         return I
 
 class DataloaderManager:
-    def __init__(self, args, hmanager, split, preshuffle):
+    def __init__(self, args, hmanager, split, preshuffle, icl_sampling):
         self.h_prefix_format = args.h_prefix_format
         
         self.hmanager = hmanager
@@ -288,7 +296,7 @@ class DataloaderManager:
         self.max_table_length = args.max_table_length
 
         self.icl_k = args.icl_k
-        self.icl_sampling = args.icl_sampling
+        self.icl_sampling = icl_sampling
         self.mix_prob_train1 = args.mix_prob_train1
 
         self.batch_size = args.batch_size
@@ -322,8 +330,8 @@ class DataloaderManager:
                     xy_seq_info = generate_sequence_normal(h, self.icl_sampling)
                 # elif self.icl_sampling == 'optimal':
                 #     xy_seq, mask_sequence = generate_sequence_optimal(h, i, self.y_mask_value)
-                # elif self.icl_sampling == 'test':
-                #     xy_seq, mask_sequence = generate_sequence_optimal(h, i, 0)
+                elif self.icl_sampling == 'optimal':
+                    xy_seq_info = generate_sequence_optimal(h, i)
                 # elif self.icl_sampling == 'mix':
                 #     xy_seq, mask_sequence = generate_sequence_mix(h, i, self.y_mask_value)
                 else:
@@ -420,39 +428,51 @@ class DataloaderManager:
             }
             return xy_seq_info
 
-        # def generate_sequence_optimal(h, i, y_mask_value):
-        #     x_seq = []
-        #     y_seq = []
-        #     y_mask_sequence = []
-        #     position_indices = np.where(i == 1)[0]
-        #     np.random.shuffle(position_indices)
-        #     for position_index in position_indices:
-        #         y = h[position_index]
-        #         x = position_index
-        #         x_seq.append(x)
-        #         y_seq.append(y)
-        #         y_mask_sequence.append(y_mask_value)  # Mask 0.0 for identifying positions
+        def generate_sequence_optimal(h, i):
+            x_seq = []
+            y_seq = []
+            position_indices = np.where(i == 1)[0]
+            np.random.shuffle(position_indices)
+            for position_index in position_indices:
+                x = self.tokens['xs'][position_index]
+                y = self.tokens['ys'][h[position_index]]
+                x_seq.append(x)
+                y_seq.append(y)
 
-        #     x_seq = repeat_list_to_length(x_seq, self.k)
-        #     y_seq = repeat_list_to_length(y_seq, self.k)
-        #     y_mask_sequence = repeat_list_to_length(y_mask_sequence, self.k)
+            x_seq = repeat_list_to_length(x_seq, self.icl_k)
+            y_seq = repeat_list_to_length(y_seq, self.icl_k)
 
-        #     indices = list(range(self.k))
-        #     random.shuffle(indices)
+            indices = list(range(self.icl_k))
+            random.shuffle(indices)
     
-        #     # Apply the same permutation to all lists
-        #     x_seq = [x_seq[i] for i in indices]
-        #     y_seq = [y_seq[i] for i in indices]
-        #     y_mask_sequence = [y_mask_sequence[i] for i in indices]
+            # Apply the same permutation to all lists
+            x_seq = [x_seq[i] for i in indices]
+            y_seq = [y_seq[i] for i in indices]
 
-        #     # Interleave x_seq and y_seq
-        #     xy_seq = []
-        #     mask_sequence = []
-        #     for x, y, y_mask in zip(x_seq, y_seq, y_mask_sequence):
-        #         xy_seq.extend([x, y])
-        #         mask_sequence.extend([0.0, y_mask])  # Mask 0.0 for x, mask_y for y
+            # Interleave x_seq and y_seq to create xy_seq
+            xy_seq = []
+            xy_seq_xmask = []
+            xy_seq_ymask = []
+            xy_seq_zmask = []
+            xy_seq_hmask = []
+            xy_seq_smask = []
+            for x, y in zip(x_seq, y_seq):
+                xy_seq      .extend([x  , y  , self.tokens[',']])
+                xy_seq_xmask.extend([1.0, 0.0, 0.0             ])
+                xy_seq_ymask.extend([0.0, 1.0, 0.0             ])
+                xy_seq_zmask.extend([0.0, 0.0, 0.0             ])
+                xy_seq_hmask.extend([0.0, 0.0, 0.0             ])
+                xy_seq_smask.extend([0.0, 0.0, 1.0             ])
 
-        #     return xy_seq, mask_sequence
+            xy_seq_info = {
+                'xy_seq'      : torch.tensor(xy_seq      [:-1], dtype=torch.long),
+                'xy_seq_xmask': torch.tensor(xy_seq_xmask[:-1], dtype=torch.long),
+                'xy_seq_ymask': torch.tensor(xy_seq_ymask[:-1], dtype=torch.long),
+                'xy_seq_zmask': torch.tensor(xy_seq_zmask[:-1], dtype=torch.long),
+                'xy_seq_hmask': torch.tensor(xy_seq_hmask[:-1], dtype=torch.long),
+                'xy_seq_smask': torch.tensor(xy_seq_smask[:-1], dtype=torch.long),
+            }
+            return xy_seq_info
 
         # def generate_sequence_mix(h, i, y_mask_value):
         #     is_normal = np.random.rand() < mix_prob_train1
@@ -738,9 +758,9 @@ if __name__ == '__main__':
     args.random_seed = 2023
 
     ### hmanager
-    args.num_x = 2
+    args.num_x = 4
     args.num_y = 2
-    args.max_table_length = 2
+    args.max_table_length = 4
     # table_lengths
     args.split_based_on = 'table'
     # split_ratio
@@ -750,7 +770,7 @@ if __name__ == '__main__':
     ### dataloader
     split = 'train'
 
-    args.icl_k = 2
+    args.icl_k = 4
     args.icl_sampling = 'ordered'
     args.h_prefix_format = 1
     args.mix_prob_train1 = 0.5  # Probability for 'mix' mode
@@ -812,7 +832,8 @@ if __name__ == '__main__':
         args,
         hmanager = hmanager,
         split = split,
-        preshuffle = False
+        preshuffle = False,
+        icl_sampling = 'optimal'
     )
 
     # Get the data loader for testing
