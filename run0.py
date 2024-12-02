@@ -4,7 +4,7 @@ gpuIdxStr = '0'
 
 random_seed = 2023+int(gpuIdxStr)
 
-prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 0 --epochs 3'
+prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 512'
 
 lr_list = [0.00002]#, 0.00005, 0.00010]
 

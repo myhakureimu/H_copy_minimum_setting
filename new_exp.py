@@ -29,10 +29,10 @@ parser.add_argument('--wandb', default=0, type=int)
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=2, type=int)
+parser.add_argument('--num_x', default=4, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 ''' # parser.add_argument('--num_training_tables', default=0, type=int) '''
-parser.add_argument('--max_table_length', default=2, type=int)
+parser.add_argument('--max_table_length', default=4, type=int)
 # table_lengths
 parser.add_argument('--split_based_on', default='table', type=str)
 # split_ratio
@@ -40,7 +40,7 @@ parser.add_argument('--split_based_on', default='table', type=str)
 # test__info
 
 # H+ICL format for dataloadermanager
-parser.add_argument('--icl_k', default=2, type=int)
+parser.add_argument('--icl_k', default=4, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
@@ -59,12 +59,12 @@ parser.add_argument('--lr', default=0.00002, type=float, help='initial model lea
 parser.add_argument('--wd', default=0.0005, type=float, help='weight decay hyperparameter (default: 0.00001)') #0.1
 parser.add_argument('--batch_size', default=16, type=int, help='mini-batch size (default: 64)') #32
 parser.add_argument('--n_steps', default=512, type=int, help='total number of training steps we want to run')
-parser.add_argument('--epochs', default=1, type=int, help='number of total epochs to run')
+parser.add_argument('--epochs', default=512, type=int, help='number of total epochs to run')
 
 parser.set_defaults(augment=True)
 args = parser.parse_args()
 
-args.n_steps = int(32*512/args.batch_size)//8
+args.n_steps = int(32*512/args.batch_size)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 setproctitle.setproctitle(f'{args.split_based_on}')
@@ -145,9 +145,9 @@ def pad4input(xy_batch, mask_batch, h_prefix, h_prefix_mask, pad_token):
 
     return hxy, mask
 
-strings = {}
-strings['train'] = {}
-strings['test_'] = {}
+# strings = {}
+# strings['train'] = {}
+# strings['test_'] = {}
 def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     wandb_info = {}
     if phase not in ['train', 'test_']:
@@ -203,24 +203,22 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
             all_seq = torch.cat([spH_prefix, xy_seq, z_suffix], dim=1)
 
-            for i in range(len(all_seq)):
-                tokens = [int2token[x] for x in list(spH_prefix[i].cpu().numpy())]
-                spH_prefix_str = '-'.join(tokens)
-                if spH_prefix_str not in strings[phase].keys():
-                    strings[phase][spH_prefix_str] = {}
+            # for i in range(len(all_seq)):
+            #     tokens = [int2token[x] for x in list(spH_prefix[i].cpu().numpy())]
+            #     spH_prefix_str = '-'.join(tokens)
+            #     if spH_prefix_str not in strings[phase].keys():
+            #         strings[phase][spH_prefix_str] = {}
                 
-                tokens = [int2token[x] for x in list(z_suffix  [i].cpu().numpy())]
-                z_suffix_str = '-'.join(tokens)
-                if z_suffix_str   not in strings[phase][spH_prefix_str].keys():
-                    strings[phase][spH_prefix_str][z_suffix_str] = {}
+            #     tokens = [int2token[x] for x in list(z_suffix  [i].cpu().numpy())]
+            #     z_suffix_str = '-'.join(tokens)
+            #     if z_suffix_str   not in strings[phase][spH_prefix_str].keys():
+            #         strings[phase][spH_prefix_str][z_suffix_str] = {}
                 
-                tokens = [int2token[x] for x in list(xy_seq    [i].cpu().numpy())]
-                xy_seq_str = '-'.join(tokens)
-                if xy_seq_str     not in strings[phase][spH_prefix_str][z_suffix_str].keys():
-                    strings[phase][spH_prefix_str][z_suffix_str][xy_seq_str] = {}
+            #     tokens = [int2token[x] for x in list(xy_seq    [i].cpu().numpy())]
+            #     xy_seq_str = '-'.join(tokens)
+            #     if xy_seq_str     not in strings[phase][spH_prefix_str][z_suffix_str].keys():
+            #         strings[phase][spH_prefix_str][z_suffix_str][xy_seq_str] = {}
 
-
-            
             i_seq = all_seq[:, :-1]
             o_seq = all_seq[:, 1:]
 
@@ -287,8 +285,8 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
             
-            pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
-            #pbar.set_description(f"train {len(train_strings)}")
+            #pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
+            pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
 
         wandb_info={}
         for table_length in table_lengths:
@@ -411,14 +409,14 @@ if 1:
     test__dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
-        split = 'train',
+        split = 'test_',
         preshuffle = True,
         icl_sampling = args.icl_sampling
     )
     opt___dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
-        split = 'train',
+        split = 'test_',
         preshuffle = True,
         icl_sampling = 'optimal'
     )
@@ -433,7 +431,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'Test OPT icl=iid {args.split_based_on} num_x={args.num_x} num_y={args.num_y}',
+            project= f'Table Generalization icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
@@ -540,15 +538,22 @@ if 1:
 
         if 1:#epoch%8 == 0:
             phase = 'test_'
+            wandb_valid_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
+            if args.wandb:
+                wandb_valid_info['global_step'] = epoch
+                wandb.log(wandb_valid_info, step=epoch, commit=False)
+
+        if 1:#epoch%8 == 0:
+            phase = 'test_'
             wandb_valid_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
                 wandb_valid_info['global_step'] = epoch
                 wandb.log(wandb_valid_info, step=epoch, commit=False)
 
-        import pickle 
+        # import pickle 
 
-        with open('strings.pkl', 'wb') as f:
-            pickle.dump(strings, f)
+        # with open('strings.pkl', 'wb') as f:
+        #     pickle.dump(strings, f)
 
         if 0:
             phase = 'test_'
