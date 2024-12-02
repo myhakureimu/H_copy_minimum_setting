@@ -6,15 +6,15 @@ random_seed = 2023+int(gpuIdxStr)
 
 prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 512'
 
-lr_list = [0.00002]#, 0.00005, 0.00010]
+lr_list = [0.00002, 0.00005, 0.00010]
 
-wd_list = [0.0005] #[0.0002, 0.0005]
+wd_list = [0.0005]
 
-batch_size_list = [16]#, 32, 64]
+batch_size_list = [16, 32, 64]
 
-modelName_list = ['dual']#, 'nano']
+modelName_list = ['dual']
 
-loss_on_list = ['all'] #['all', 'y\&z']
+loss_on_list = ['all']
 
 icl_sampling_list = ['iid']
 
