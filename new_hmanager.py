@@ -607,7 +607,7 @@ class DataloaderManager:
             spH_prefix_hmask = []
             spH_prefix_smask = []
             m, n = spH.shape
-
+            
             for h in spH:
                 # Add a pad token to separate hypotheses
                 spH_prefix      .extend([self.tokens['pad']] * 2)
@@ -624,8 +624,12 @@ class DataloaderManager:
                     spH_prefix_hmask.extend([1.0  ] + [0.0             ] * 1)
                     spH_prefix_smask.extend([0.0  ] + [1.0             ] * 1)
                 # Generate interleaved x, y sequence for this hypothesis
-                x_seq = [self.tokens['xs'][x_index] for x_index in range(n-1)]
-                y_seq = [self.tokens['ys'][y_index] for y_index in h[:-1].tolist()]
+                if h[0] != self.tokens['nan']:
+                    x_seq = [self.tokens['xs'][x_index] for x_index in range(n-1)]
+                    y_seq = [self.tokens['ys'][y_index] for y_index in h[:-1].tolist()]
+                else:
+                    x_seq = [self.tokens['nan'] for x_index in range(n-1)]
+                    y_seq = [self.tokens['nan'] for y_index in h[:-1].tolist()]
                 xy_seq       = []
                 xy_seq_xmask = []
                 xy_seq_ymask = []
@@ -758,7 +762,7 @@ if __name__ == '__main__':
     args.random_seed = 2023
 
     ### hmanager
-    args.num_x = 4
+    args.num_x = 2
     args.num_y = 2
     args.max_table_length = 4
     # table_lengths
@@ -770,9 +774,9 @@ if __name__ == '__main__':
     ### dataloader
     split = 'train'
 
-    args.icl_k = 4
+    args.icl_k = 2
     args.icl_sampling = 'ordered'
-    args.h_prefix_format = 1
+    args.h_prefix_format = 0
     args.mix_prob_train1 = 0.5  # Probability for 'mix' mode
 
     args.batch_size = 2  # Number of samples per batch

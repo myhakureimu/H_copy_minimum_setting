@@ -4,17 +4,21 @@ gpuIdxStr = '0'
 
 random_seed = 2023+int(gpuIdxStr)
 
-prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 512'
+exp_name = 'HypothesisGeneralizaton'
 
-lr_list = [0.00002, 0.00005, 0.00010]
+split_based_on, num_x = 'hypothesis', 5
 
-wd_list = [0.0005]
+prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --exp_name {exp_name} --split_based_on {split_based_on} --num_x {num_x} --wandb 1 --epochs 512'
 
-batch_size_list = [16, 32, 64]
+lr_list = [0.00002]#, 0.00005, 0.00010]
 
-modelName_list = ['dual']
+wd_list = [0.0005] #[0.0002, 0.0005]
 
-loss_on_list = ['all']
+batch_size_list = [16]#, 32, 64]
+
+modelName_list = ['dual']#, 'nano']
+
+loss_on_list = ['all'] #['all', 'y\&z']
 
 icl_sampling_list = ['iid']
 

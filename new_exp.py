@@ -21,6 +21,7 @@ parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
 parser.add_argument('--wandb', default=0, type=int)
 
+parser.add_argument('--exp_name', default='test', type=str)
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
 # parser.add_argument('--NormAtt', default=0, type=int)
@@ -29,9 +30,9 @@ parser.add_argument('--wandb', default=0, type=int)
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=4, type=int)
+parser.add_argument('--num_x', default=5, type=int)
 parser.add_argument('--num_y', default=2, type=int)
-''' # parser.add_argument('--num_training_tables', default=0, type=int) '''
+parser.add_argument('--num_training_tables', default=0, type=int)
 parser.add_argument('--max_table_length', default=4, type=int)
 # table_lengths
 parser.add_argument('--split_based_on', default='table', type=str)
@@ -44,7 +45,7 @@ parser.add_argument('--icl_k', default=4, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
-parser.add_argument('--mix_prob_train1', default=0.5, type=float)  
+parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 
 # model setting
 parser.add_argument('--modelName', default='dual', type=str)
@@ -65,6 +66,8 @@ parser.set_defaults(augment=True)
 args = parser.parse_args()
 
 args.n_steps = int(32*512/args.batch_size)
+if args.exp_name == 'TableGeneralization':
+    args.exp_name = 'Table Generalization'
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 setproctitle.setproctitle(f'{args.split_based_on}')
@@ -77,6 +80,10 @@ if args.modelName == 'pytorch':
     from utils.pytorch_transformer import PytorchTransformer
 if args.modelName == 'dual':
     from utils.models import TransformerModel
+if args.modelName == 'lstm':
+    from utils.lstm import LSTMModel
+if args.modelName == 'gru':
+    from utils.gru import GRUModel
 
 torch.backends.cudnn.benchmark = True
 #torch.manual_seed(args.random_seed)
@@ -323,39 +330,57 @@ if 1:
     icl_k = args.icl_k  # Number of x-y pairs per sequence
     split_based_on = args.split_based_on  # 'hypothesis' or 'table'
 
-
     if split_based_on == 'table':
-        if args.num_x == 2:
-            table_lengths = [2]
-            split_ratio = [1, 0]  # Ratios for train and test splits
-            train_info = {2: 6}  # Number of train tables to sample per length
-            test__info = {2: 0}  # Number of test tables to sample per length
-        if args.num_x == 3:
-            table_lengths = [3]
-            split_ratio = [56/56, 0/56]  # Ratios for train and test splits
-            train_info = {3: 56}  # Number of train tables to sample per length
-            test__info = {3: 0}  # Number of test tables to sample per length
+        if args.exp_name == 'TableLengthGeneralization':
+            if args.num_x == 4:
+                table_lengths = [4, 5, 6, 7]
+                split_ratio = [0.7, 0.3]
+                train_info = {4: 1274, 5: 1274, 6: 1274, 7:1274}  # Number of train tables to sample per length
+                test__info = {4: 546, 5: 546, 6: 546, 7: 546}  # Number of train tables to sample per length
+            if args.num_x == 5:
+                table_lengths = [3, 4, 5, 6, 7]
+                split_ratio = [2/3, 1/3]
+                if args.num_training_tables != 0:
+                    train_info = {
+                        4: args.num_training_tables,
+                        5: args.num_training_tables,
+                        6: args.num_training_tables
+                    }  # Number of train tables to sample per length
+                else:
+                    train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
+                test__info = {3:1500, 4: 1500, 5: 1500, 6: 1500, 7: 1500}  # Number of train tables to sample per length
+        elif args.exp_name == 'Table Generalization':
+            if args.num_x == 2:
+                table_lengths = [2]
+                split_ratio = [1, 0]  # Ratios for train and test splits
+                train_info = {2: 6}  # Number of train tables to sample per length
+                test__info = {2: 0}  # Number of test tables to sample per length
+            if args.num_x == 3:
+                table_lengths = [3]
+                split_ratio = [56/56, 0/56]  # Ratios for train and test splits
+                train_info = {3: 56}  # Number of train tables to sample per length
+                test__info = {3: 0}  # Number of test tables to sample per length
+            if args.num_x == 4:
+                table_lengths = [4]
+                split_ratio = [0.7, 0.3]  # Ratios for train and test splits
+                train_info = {4: 1274}  # Number of train tables to sample per length
+                test__info = {4: 526}  # Number of test tables to sample per length
+            if args.num_x == 5:
+                table_lengths = [4]
+                split_ratio = [0.7, 0.3]  # Ratios for train and test splits
+                train_info = {4: 1820}  # Number of train tables to sample per length
+                test__info = {4: 1820}  # Number of test tables to sample per length
+    
+    if split_based_on == 'hypothesis':
         if args.num_x == 4:
-            table_lengths = [4]
-            split_ratio = [0.7, 0.3]  # Ratios for train and test splits
-            train_info = {4: 1274}  # Number of train tables to sample per length
-            test__info = {4: 526}  # Number of test tables to sample per length
+            raise Exception('Num of tables would be too small')
         if args.num_x == 5:
             table_lengths = [4]
-            split_ratio = [0.7, 0.3]  # Ratios for train and test splits
+            split_ratio = [0.5, 0.5]  # Ratios for train and test splits
             train_info = {4: 1820}  # Number of train tables to sample per length
             test__info = {4: 1820}  # Number of test tables to sample per length
-    
-    # if split_based_on == 'hypothesis':
-    #     if n == 4:
-    #         raise Exception('Num of tables would be too small')
-    #     if n == 5:
-    #         table_lengths = [4]
-    #         split_ratio = [0.5, 0.5]  # Ratios for train and test splits
-    #         train_info = {4: 1820}  # Number of train tables to sample per length
-    #         test__info = {4: 1820}  # Number of test tables to sample per length
 
-    # if args.expName == 'table_length_basiccheck':
+    # if args.exp_name == 'table_length_basiccheck':
     #     if split_based_on != 'table':
     #         raise Exception('Wrong setting')
     #     if n == 4:
@@ -369,7 +394,7 @@ if 1:
     #         train_info = {3: 3000, 4: 3000, 5: 3000, 6: 3000, 7: 3000}  # Number of train tables to sample per length
     #         test__info = {3:1500, 4: 1500, 5: 1500, 6: 1500, 7: 1500}  # Number of train tables to sample per length
 
-    # if args.expName == 'table_length_generalization':
+    # if args.exp_name == 'table_length_generalization':
     #     if split_based_on != 'table':
     #         raise Exception('Wrong setting')
     #     if n == 4:
@@ -421,6 +446,7 @@ if 1:
         icl_sampling = 'optimal'
     )
 
+
     # wandb
     if args.wandb:
         wandb.login(key='0e030fcc130348fb3127f6140ac82c773fa4b4d9')
@@ -431,7 +457,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'Table Generalization icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
+            project= f'{args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
@@ -488,6 +514,20 @@ if 1:
             n_layer = args.depth, 
             n_head = args.num_heads
         )
+    if args.modelName == 'lstm':
+        model = LSTMModel(
+            input_dim = hmanager.num_tokens, 
+            hidden_dim = args.embed_dim,
+            output_dim = hmanager.num_tokens,
+            num_layers = args.depth
+        )
+    if args.modelName == 'gru':
+        model = GRUModel(
+            input_dim = hmanager.num_tokens, 
+            hidden_dim = args.embed_dim,
+            output_dim = hmanager.num_tokens, 
+            num_layers = args.depth
+        )
     if args.modelName == 'nano': #nanoGPT
         config = GPTConfig(
             input_dim = hmanager.num_tokens,
@@ -529,6 +569,7 @@ if 1:
     for epoch in range(0, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
         #print(model._read_out.weight.data)
+        #print(table_lengths)
         if 1:#epoch!=0: #train
             phase = 'train'
             wandb_train_info = train_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)

@@ -4,19 +4,24 @@ gpuIdxStr = '3'
 
 random_seed = 2023+int(gpuIdxStr)
 
-exp_name = 'HypothesisGeneralizaton'
+exp_name = 'TableLengthGeneralization'
 
-split_based_on, num_x = 'hypothesis', 5
+split_based_on, num_x = 'table', 5
 
-prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --exp_name {exp_name} --split_based_on {split_based_on} --num_x {num_x} --wandb 1 --epochs 512'
+max_table_length = 8
 
-lr_list = [0.00002]#, 0.00005, 0.00010]
+num_training_tables = 3000
+
+prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 512 --exp_name {exp_name}\
+        --split_based_on {split_based_on} --num_x {num_x} --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
+
+lr_list = [0.00002] #, 0.00005, 0.00010]
 
 wd_list = [0.0005] #[0.0002, 0.0005]
 
-batch_size_list = [16]#, 32, 64]
+batch_size_list = [16] #, 32, 64]
 
-modelName_list = ['dual']#, 'nano']
+modelName_list = ['dual'] #, 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 

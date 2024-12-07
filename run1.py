@@ -1,10 +1,14 @@
 import numpy as np
 import os
-gpuIdxStr = '0'
+gpuIdxStr = '1'
 
-random_seed = 2024+int(gpuIdxStr)
+random_seed = 2023+int(gpuIdxStr)
 
-prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 512'
+exp_name = 'HypothesisGeneralizaton'
+
+split_based_on, num_x = 'hypothesis', 5
+
+prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --exp_name {exp_name} --split_based_on {split_based_on} --num_x {num_x} --wandb 1 --epochs 512'
 
 lr_list = [0.00002]#, 0.00005, 0.00010]
 
