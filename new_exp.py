@@ -44,6 +44,7 @@ parser.add_argument('--split_based_on', default='table', type=str)
 parser.add_argument('--icl_k', default=4, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
+parser.add_argument('--sampling_disparity', default=1.0, type=float)
 parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 
@@ -89,6 +90,22 @@ torch.backends.cudnn.benchmark = True
 #torch.manual_seed(args.random_seed)
 #np.random.seed(args.random_seed)
 #random.seed(args.random_seed)
+
+def generate_normalized_vector(n, sampling_disparity):
+    if n < 1:
+        raise ValueError("n must be a positive integer.")
+
+    half = n // 2
+    if n % 2 == 0:  # Even case
+        vector = [1] * half + [sampling_disparity] * half
+    else:  # Odd case
+        vector = [1] * half + [sampling_disparity**0.5] + [sampling_disparity] * half
+
+    # Normalize the vector
+    vector = np.array(vector, dtype=float)
+    normalized_vector = vector / vector.sum()
+
+    return normalized_vector
 
 class AverageMeter(object):
     def __init__(self, table_lengths):
@@ -160,6 +177,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     if phase not in ['train', 'test_']:
         raise Exception(f'phase = {phase} is not valid')
     icl_sampling = dmanager.icl_sampling
+    iid_probability = dmanager.iid_probability
     dataloader = dmanager.get_pytorch_dataloader()
     int2token = dmanager.hmanager.int2token
     #print(int2token)
@@ -297,19 +315,20 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
         wandb_info={}
         for table_length in table_lengths:
-            wandb_info[f"{phase}-{icl_sampling}/loss_{table_length}"]  = batch_loss.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/loss_{table_length}"]  = batch_loss.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
         
     return wandb_info
 
 
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
-             +'_'+ 'num_x='+str(args.num_x)
+             +'_'+ 'num_x='+str(args.num_x) \
+             +'_'+ 'sampling_disparity='+str(args.sampling_disparity)
     model_hypers = 'modelName='+str(args.modelName) \
              +'_'+ 'depth='+str(args.depth) \
              +'_'+ 'dim='+str(args.embed_dim) \
@@ -417,6 +436,8 @@ if 1:
 
     # Initialize the HypothesisManager
 
+    iid_probability = generate_normalized_vector(args.num_x, args.sampling_disparity)
+
     hmanager = HypothesisManager(
         args,
         table_lengths=table_lengths,
@@ -429,14 +450,16 @@ if 1:
         hmanager = hmanager,
         split = 'train',
         preshuffle = True,
-        icl_sampling = args.icl_sampling
+        icl_sampling = args.icl_sampling,
+        iid_probability = iid_probability
     )
     test__dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
         split = 'test_',
         preshuffle = True,
-        icl_sampling = args.icl_sampling
+        icl_sampling = args.icl_sampling,
+        iid_probability = iid_probability
     )
     opt___dmanager = DataloaderManager(
         args,

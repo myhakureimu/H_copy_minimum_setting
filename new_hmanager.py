@@ -282,7 +282,7 @@ class HypothesisManager:
         return I
 
 class DataloaderManager:
-    def __init__(self, args, hmanager, split, preshuffle, icl_sampling):
+    def __init__(self, args, hmanager, split, preshuffle, icl_sampling, iid_probability=None):
         self.h_prefix_format = args.h_prefix_format
         
         self.hmanager = hmanager
@@ -297,6 +297,7 @@ class DataloaderManager:
 
         self.icl_k = args.icl_k
         self.icl_sampling = icl_sampling
+        self.iid_probability = iid_probability
         self.mix_prob_train1 = args.mix_prob_train1
 
         self.batch_size = args.batch_size
@@ -392,8 +393,11 @@ class DataloaderManager:
                 position_indices = np.arange(self.num_x)
             elif icl_sampling == 'permutation':
                 position_indices = np.random.permutation(np.arange(self.num_x))
-            elif icl_sampling == 'iid':   
-                position_indices = np.random.choice(self.num_x, size=self.icl_k, replace=True)
+            elif icl_sampling == 'iid':
+                if self.iid_probability is None:
+                    position_indices = np.random.choice(self.num_x, size=self.icl_k, replace=True)
+                else:
+                    position_indices = np.random.choice(self.num_x, size=self.icl_k, replace=True, p=self.iid_probability)
             else:
                 raise Exception(f'wrong if icl_sampling == {icl_sampling}')
             # print('position_indices =', position_indices)
