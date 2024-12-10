@@ -500,7 +500,7 @@ if 1:
     print('***** ' + hdata_hypers + ' *****')
     print('***** ' + model_hypers + ' *****')
     print('***** ' + optim_hypers + ' *****')
-    folder = hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
+    folder = 'saved/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
     
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -553,11 +553,6 @@ if 1:
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd, betas = (0.9, 0.999))
     
     
-    # Iterating through training epochs
-    if not os.path.exists(folder+'checkpoint'):
-        os.makedirs(folder+'checkpoint')
-    
-    
     # print('******** EP = ' +str(0)+ ' / ' +str(args.epochs)+ ' *******')
     # epoch = 0
     # split = 'test'
@@ -565,8 +560,26 @@ if 1:
     # if args.wandb:
     #     wandb_valid_info['global_step'] = epoch
     #     wandb.log(wandb_valid_info)
-                
-    for epoch in range(0, args.epochs+1):
+    
+    start_from = 0
+    for epoch in range(1, args.epochs+1):
+        last_file = folder + f'EP={epoch-1}'
+        curr_file = folder + f'EP={epoch}'
+        if epoch == 1:
+            last_exists = True
+        else:
+            last_exists = os.path.exists(last_file)
+        curr_exists = os.path.exists(curr_file)
+        if last_exists and curr_exists:
+            start_from = epoch-1
+
+    if start_from != 0:
+        save_path = folder + f'EP={start_from}'
+        checkpoint = torch.load(save_path)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    
+    for epoch in range(start_from, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
         #print(model._read_out.weight.data)
         #print(table_lengths)
@@ -577,20 +590,31 @@ if 1:
                 wandb_train_info['global_step'] = epoch
                 wandb.log(wandb_train_info, step=epoch, commit=False)
 
-        if 1:#epoch%8 == 0:
+        if epoch%8 == 1:
             phase = 'test_'
             wandb_valid_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
                 wandb_valid_info['global_step'] = epoch
                 wandb.log(wandb_valid_info, step=epoch, commit=False)
 
-        if 1:#epoch%8 == 0:
+        if epoch%8 == 1:
             phase = 'test_'
             wandb_valid_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
                 wandb_valid_info['global_step'] = epoch
                 wandb.log(wandb_valid_info, step=epoch, commit=False)
-
+        
+        save_path = folder + f'EP={epoch}'
+        print(save_path)
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+        }, save_path)
+        if epoch-2 >= 0:
+            dele_path = folder + f'EP={epoch-2}'
+            if os.path.exists(dele_path):
+                os.remove(dele_path)
+        
         # import pickle 
 
         # with open('strings.pkl', 'wb') as f:
