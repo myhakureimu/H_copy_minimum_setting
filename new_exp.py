@@ -21,7 +21,7 @@ parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
 parser.add_argument('--wandb', default=0, type=int)
 
-parser.add_argument('--exp_name', default='test', type=str)
+parser.add_argument('--exp_name', default='TableGeneralization', type=str)
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
 # parser.add_argument('--NormAtt', default=0, type=int)
@@ -30,7 +30,7 @@ parser.add_argument('--exp_name', default='test', type=str)
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=5, type=int)
+parser.add_argument('--num_x', default=4, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
 parser.add_argument('--max_table_length', default=4, type=int)
@@ -49,9 +49,9 @@ parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 
 # model setting
-parser.add_argument('--modelName', default='dual', type=str)
+parser.add_argument('--modelName', default='mamba', type=str, choices=['dual', 'mamba', 'lstm', 'gru'])
 parser.add_argument('--num_heads', default=2, type=int, help='number of heads for multi-headed attention (default: 8)')
-parser.add_argument('--depth', default=8, type=int, help='depth of the transformer architecture (default: 12)')
+parser.add_argument('--depth', default=2, type=int, help='depth of the transformer architecture (default: 12)')
 parser.add_argument('--embed_dim', default=128, type=int, help='embedding dimension of the transformer feature extractor (default: 256)')
 # parser.add_argument('--dropout', default=0.0, type=float, help='dropout')
 parser.add_argument('--llm_max_length', default=256, type=int, help='maximum sequence length of the input (default: 11)')
@@ -81,6 +81,8 @@ if args.modelName == 'pytorch':
     from utils.pytorch_transformer import PytorchTransformer
 if args.modelName == 'dual':
     from utils.models import TransformerModel
+if args.modelName == 'mamba':
+    from utils.ssm import KLayerMambaModel
 if args.modelName == 'lstm':
     from utils.lstm import LSTMModel
 if args.modelName == 'gru':
@@ -536,6 +538,15 @@ if 1:
             n_embd = args.embed_dim,
             n_layer = args.depth, 
             n_head = args.num_heads
+        )
+    if args.modelName == 'mamba': #dual
+        model = KLayerMambaModel(
+            num_tokens = hmanager.num_tokens,
+            num_layer = args.depth,
+            d_model = args.embed_dim,
+            d_state = 16,
+            d_conv = 4,
+            expand = 2,
         )
     if args.modelName == 'lstm':
         model = LSTMModel(
