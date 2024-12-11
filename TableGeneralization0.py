@@ -17,7 +17,7 @@ prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
 
 depth_list = [2]
 
-lr_list = [0.000100, 0.001000]
+lr_list = [0.010000]
 
 wd_list = [0.0005] #[0.0002, 0.0005]
 
