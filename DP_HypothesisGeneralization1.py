@@ -1,14 +1,14 @@
 import numpy as np
 import os
-gpuIdxStr = '0'
+gpuIdxStr = '1'
 
 random_seed = 2023+int(gpuIdxStr)
 
-exp_name = 'HypothesisLengthGeneralization'
+exp_name = 'HypothesisGeneralization'
 
-split_based_on, num_x, icl_k = 'hypothesis', 6, 6
+split_based_on, num_x, icl_k = 'hypothesis', 5, 5
 
-max_table_length = 8
+max_table_length = 4
 
 num_training_tables = 3000
 

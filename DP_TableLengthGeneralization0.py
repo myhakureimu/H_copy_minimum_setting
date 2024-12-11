@@ -4,9 +4,9 @@ gpuIdxStr = '0'
 
 random_seed = 2023+int(gpuIdxStr)
 
-exp_name = 'HypothesisLengthGeneralization'
+exp_name = 'TableLengthGeneralization'
 
-split_based_on, num_x, icl_k = 'hypothesis', 6, 6
+split_based_on, num_x, icl_k = 'table', 5, 5
 
 max_table_length = 8
 

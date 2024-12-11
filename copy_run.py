@@ -1,7 +1,7 @@
 import shutil
 
 # Source file
-prefix = 'HGeneralization'
+prefix = 'DP_TableLengthGeneralization'
 source_file = f'{prefix}0.py'
 
 # Copy the file to run1.py through run8.py, overwriting if necessary

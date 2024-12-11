@@ -67,11 +67,9 @@ parser.set_defaults(augment=True)
 args = parser.parse_args()
 
 args.n_steps = int(32*512/args.batch_size)
-if args.exp_name == 'TableGeneralization':
-    args.exp_name = 'Table Generalization'
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-setproctitle.setproctitle(f'{args.split_based_on}')
+setproctitle.setproctitle(f'{args.exp_name} {args.sampling_disparity} {args.random_seed}')
 
 import torch
 import torch.nn as nn
@@ -171,6 +169,16 @@ def pad4input(xy_batch, mask_batch, h_prefix, h_prefix_mask, pad_token):
 
     return hxy, mask
 
+def l2s(float_list):
+    if float_list is None:
+        return '[None]'
+    # Format each float to have exactly three decimal places as a string
+    formatted_probs = [f"{prob:.3f}" for prob in float_list]
+    
+    # Combine the formatted strings into a list string
+    output_str = "[" + ", ".join(formatted_probs) + "]"
+    
+    return output_str
 # strings = {}
 # strings['train'] = {}
 # strings['test_'] = {}
@@ -317,12 +325,12 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
         wandb_info={}
         for table_length in table_lengths:
-            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/loss_{table_length}"]  = batch_loss.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}[{str(iid_probability)}]/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/loss__{table_length}"] = batch_loss.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
         
     return wandb_info
 
@@ -371,7 +379,7 @@ if 1:
                 else:
                     train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
                 test__info = {3:1500, 4: 1500, 5: 1500, 6: 1500, 7: 1500}  # Number of train tables to sample per length
-        elif args.exp_name == 'Table Generalization':
+        elif args.exp_name == 'TableGeneralization':
             if args.num_x == 2:
                 table_lengths = [2]
                 split_ratio = [1, 0]  # Ratios for train and test splits
@@ -394,13 +402,27 @@ if 1:
                 test__info = {4: 1820}  # Number of test tables to sample per length
     
     if split_based_on == 'hypothesis':
-        if args.num_x == 4:
-            raise Exception('Num of tables would be too small')
-        if args.num_x == 5:
-            table_lengths = [4]
-            split_ratio = [0.5, 0.5]  # Ratios for train and test splits
-            train_info = {4: 1820}  # Number of train tables to sample per length
-            test__info = {4: 1820}  # Number of test tables to sample per length
+        if args.exp_name == 'HypothesisGeneralization':
+            if args.num_x == 4:
+                raise Exception('Num of tables would be too small')
+            if args.num_x == 5:
+                table_lengths = [4]
+                split_ratio = [0.5, 0.5]  # Ratios for train and test splits
+                train_info = {4: 1820}  # Number of train tables to sample per length
+                test__info = {4: 1820}  # Number of test tables to sample per length
+        elif args.exp_name == 'HypothesisLengthGeneralization':
+            if args.num_x == 6:
+                table_lengths = [4, 5, 6, 7, 8]
+                split_ratio = [2/3, 1/3]
+                if args.num_training_tables != 0:
+                    train_info = {
+                        4: args.num_training_tables,
+                        5: args.num_training_tables,
+                        6: args.num_training_tables
+                    }  # Number of train tables to sample per length
+                else:
+                    train_info = {5: 3000, 6: 3000, 7: 3000}  # Number of train tables to sample per length
+                test__info = {4:1500, 5: 1500, 6: 1500, 7: 1500, 8: 1500}  # Number of train tables to sample per length
 
     # if args.exp_name == 'table_length_basiccheck':
     #     if split_based_on != 'table':
@@ -483,7 +505,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'{args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
+            project= f'DP {args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
@@ -526,7 +548,7 @@ if 1:
     print('***** ' + hdata_hypers + ' *****')
     print('***** ' + model_hypers + ' *****')
     print('***** ' + optim_hypers + ' *****')
-    folder = 'saved/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
+    folder = 'saved/'+args.exp_name+'/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
     
     if not os.path.exists(folder):
         os.makedirs(folder)

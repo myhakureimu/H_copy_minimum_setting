@@ -1,14 +1,14 @@
 import numpy as np
 import os
-gpuIdxStr = '0'
+gpuIdxStr = '2'
 
 random_seed = 2023+int(gpuIdxStr)
 
-exp_name = 'HypothesisLengthGeneralization'
+exp_name = 'TableGeneralization'
 
-split_based_on, num_x, icl_k = 'hypothesis', 6, 6
+split_based_on, num_x, icl_k = 'table', 4, 4
 
-max_table_length = 8
+max_table_length = 4
 
 num_training_tables = 3000
 
@@ -19,13 +19,13 @@ sampling_disparity_list = [1.0, 4.0, 9.0]
 
 depth_list = [8]
 
-lr_list = [0.00002] #, 0.00005, 0.00010]
+lr_list = [0.00002]
 
 wd_list = [0.0005] #[0.0002, 0.0005]
 
 batch_size_list = [16] #, 32, 64]
 
-modelName_list = ['dual'] #, 'nano']
+modelName_list = ['dual'] #'lstm', 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 
