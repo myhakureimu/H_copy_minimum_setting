@@ -330,7 +330,8 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
              +'_'+ 'num_x='+str(args.num_x) \
-             +'_'+ 'sampling_disparity='+str(args.sampling_disparity)
+             +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
+             +'_'+ 'random_seed='+str(args.random_seed)
     model_hypers = 'modelName='+str(args.modelName) \
              +'_'+ 'depth='+str(args.depth) \
              +'_'+ 'dim='+str(args.embed_dim) \

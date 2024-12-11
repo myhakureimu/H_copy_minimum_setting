@@ -15,9 +15,9 @@ num_training_tables = 3000
 prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs 512 --exp_name {exp_name}\
         --split_based_on {split_based_on} --num_x {num_x} --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
-depth_list = [8]
+depth_list = [2]
 
-lr_list = [0.00002] #, 0.00005, 0.00010]
+lr_list = [0.00005, 0.00010]
 
 wd_list = [0.0005] #[0.0002, 0.0005]
 
