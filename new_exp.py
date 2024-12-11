@@ -229,18 +229,18 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             z_suffix_smask = torch.stack(batch['z_suffix_list_info']['z_suffix_smask_list']).cuda().to(torch.float32)
 
             all_seq = torch.cat([spH_prefix, xy_seq, z_suffix], dim=1)
-
+            
             # for i in range(len(all_seq)):
             #     tokens = [int2token[x] for x in list(spH_prefix[i].cpu().numpy())]
             #     spH_prefix_str = '-'.join(tokens)
             #     if spH_prefix_str not in strings[phase].keys():
             #         strings[phase][spH_prefix_str] = {}
-                
+            
             #     tokens = [int2token[x] for x in list(z_suffix  [i].cpu().numpy())]
             #     z_suffix_str = '-'.join(tokens)
             #     if z_suffix_str   not in strings[phase][spH_prefix_str].keys():
             #         strings[phase][spH_prefix_str][z_suffix_str] = {}
-                
+            
             #     tokens = [int2token[x] for x in list(xy_seq    [i].cpu().numpy())]
             #     xy_seq_str = '-'.join(tokens)
             #     if xy_seq_str     not in strings[phase][spH_prefix_str][z_suffix_str].keys():
