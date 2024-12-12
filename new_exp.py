@@ -505,7 +505,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'DP {args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
+            project= f'ModelvsExp {args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
