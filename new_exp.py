@@ -49,9 +49,9 @@ parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 
 # model setting
-parser.add_argument('--modelName', default='mamba', type=str, choices=['dual', 'mamba', 'lstm', 'gru'])
+parser.add_argument('--modelName', default='dual', type=str, choices=['dual', 'mamba', 'lstm', 'gru'])
 parser.add_argument('--num_heads', default=2, type=int, help='number of heads for multi-headed attention (default: 8)')
-parser.add_argument('--depth', default=2, type=int, help='depth of the transformer architecture (default: 12)')
+parser.add_argument('--depth', default=8, type=int, help='depth of the transformer architecture (default: 12)')
 parser.add_argument('--embed_dim', default=128, type=int, help='embedding dimension of the transformer feature extractor (default: 256)')
 # parser.add_argument('--dropout', default=0.0, type=float, help='dropout')
 parser.add_argument('--llm_max_length', default=256, type=int, help='maximum sequence length of the input (default: 11)')
@@ -606,6 +606,12 @@ if 1:
             max_seq_length = args.llm_max_length)
 
     model.cuda()
+    total_params = sum(p.numel() for p in model._read_in.parameters())
+    print(f"Total number of parameters: {total_params}")
+    total_params = sum(p.numel() for p in model._backbone.parameters())
+    print(f"Total number of parameters: {total_params}")
+    total_params = sum(p.numel() for p in model._read_out.parameters())
+    print(f"Total number of parameters: {total_params}")
     #print(model)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd, betas = (0.9, 0.999))
     
