@@ -12,6 +12,7 @@ def repeat_list_to_length(lst, K):
     repeated_list = (lst * (K // len(lst) + 1))[:K]
     return repeated_list
 
+
 class HypothesisManager:
     def __init__(self, args, table_lengths, split_ratio, train_info, test__info):
         self.h_prefix_format = args.h_prefix_format

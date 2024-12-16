@@ -10,6 +10,7 @@ import numpy as np
 import wandb
 
 from new_hmanager import HypothesisManager, DataloaderManager
+from find_valid_zs import find_valid_zs
 
 matplotlib.rc('text', usetex=True)
 matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
@@ -192,6 +193,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     iid_probability = dmanager.iid_probability
     dataloader = dmanager.get_pytorch_dataloader()
     int2token = dmanager.hmanager.int2token
+    tokens = dmanager.tokens
     #print(int2token)
 
     loss_f = torch.nn.CrossEntropyLoss(reduction = 'none')
@@ -202,6 +204,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     batch_acc_z = AverageMeter(table_lengths)
     batch_acc_h = AverageMeter(table_lengths)
     batch_acc_s = AverageMeter(table_lengths)
+    batch_acc_zs = AverageMeter(table_lengths)
     if phase == 'train':
         model.train()
     if phase == 'test_':
@@ -239,22 +242,6 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             z_suffix_smask = torch.stack(batch['z_suffix_list_info']['z_suffix_smask_list']).cuda().to(torch.float32)
 
             all_seq = torch.cat([spH_prefix, xy_seq, z_suffix], dim=1)
-            
-            # for i in range(len(all_seq)):
-            #     tokens = [int2token[x] for x in list(spH_prefix[i].cpu().numpy())]
-            #     spH_prefix_str = '-'.join(tokens)
-            #     if spH_prefix_str not in strings[phase].keys():
-            #         strings[phase][spH_prefix_str] = {}
-            
-            #     tokens = [int2token[x] for x in list(z_suffix  [i].cpu().numpy())]
-            #     z_suffix_str = '-'.join(tokens)
-            #     if z_suffix_str   not in strings[phase][spH_prefix_str].keys():
-            #         strings[phase][spH_prefix_str][z_suffix_str] = {}
-            
-            #     tokens = [int2token[x] for x in list(xy_seq    [i].cpu().numpy())]
-            #     xy_seq_str = '-'.join(tokens)
-            #     if xy_seq_str     not in strings[phase][spH_prefix_str][z_suffix_str].keys():
-            #         strings[phase][spH_prefix_str][z_suffix_str][xy_seq_str] = {}
 
             i_seq = all_seq[:, :-1]
             o_seq = all_seq[:, 1:]
@@ -322,8 +309,24 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
             
+            p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
+            print(p_seq.shape)
+            correct_zs_per_h = []
+            count_zs_per_h = count_z_per_h
+            for iib in range(len(batch['spH_list'])):
+                valid_zs = find_valid_zs(batch['spH_prefix_list_info']['spH_prefix_list'][iib],
+                                         batch['xy_seq_list_info'    ]['xy_seq_list'    ][iib],
+                                         pad_token=tokens['pad'], predict_token=tokens['>'], comma_token=tokens[','])
+                if p_seq[iib] in valid_zs:
+                    correct_zs_per_h.append(1)
+                else:
+                    correct_zs_per_h.append(0)
+            correct_zs_per_h = torch.tensor(correct_zs_per_h)
+
+            batch_acc_zs.update(table_length_batch, correct_zs_per_h.data, count_zs_per_h)
+
             #pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
-            pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
+            pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} acc_zs={batch_acc_zs.avg[0]:.3f}")
 
         wandb_info={}
         for table_length in table_lengths:
