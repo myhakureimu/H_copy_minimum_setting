@@ -35,7 +35,7 @@ icl_sampling_list = ['iid']
 
 h_prefix_format_list = [0]
 
-icl_y_noise_list = [0.4]
+icl_y_noise_list = [0.6]
 
 for depth in depth_list:
     for lr in lr_list:
