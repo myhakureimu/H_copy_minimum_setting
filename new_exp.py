@@ -20,10 +20,10 @@ matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
 parser = argparse.ArgumentParser(description='PyTorch In-context Learning Training Code')
 parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
-parser.add_argument('--wandb', default=0, type=int)
+parser.add_argument('--wandb', default=1, type=int)
 
-parser.add_argument('--HEAD', default='YNOISE', type=str)
-parser.add_argument('--exp_name', default='TableGeneralization', type=str)
+parser.add_argument('--HEAD', default='TEST', type=str)
+parser.add_argument('--exp_name', default='TableLengthGeneralization', type=str)
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
 # parser.add_argument('--NormAtt', default=0, type=int)
@@ -35,7 +35,7 @@ parser.add_argument('--exp_name', default='TableGeneralization', type=str)
 parser.add_argument('--num_x', default=4, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
-parser.add_argument('--max_table_length', default=4, type=int)
+parser.add_argument('--max_table_length', default=8, type=int)
 # table_lengths
 parser.add_argument('--split_based_on', default='table', type=str)
 # split_ratio
@@ -310,7 +310,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
             
             p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
-            print(p_seq.shape)
+            #print(p_seq.shape)
             correct_zs_per_h = []
             count_zs_per_h = count_z_per_h
             for iib in range(len(batch['spH_list'])):
@@ -429,7 +429,8 @@ if 1:
                 else:
                     train_info = {5: 3000, 6: 3000, 7: 3000}  # Number of train tables to sample per length
                 test__info = {4:1500, 5: 1500, 6: 1500, 7: 1500, 8: 1500}  # Number of train tables to sample per length
-
+    if args.max_table_length < max(table_lengths):
+        raise Exception('max_table_length too small')
     # if args.exp_name == 'table_length_basiccheck':
     #     if split_based_on != 'table':
     #         raise Exception('Wrong setting')
