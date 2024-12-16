@@ -282,7 +282,7 @@ class HypothesisManager:
         return I
 
 class DataloaderManager:
-    def __init__(self, args, hmanager, split, preshuffle, icl_sampling, iid_probability=None):
+    def __init__(self, args, hmanager, split, preshuffle, icl_sampling, iid_probability=None, icl_y_noise=None):
         self.h_prefix_format = args.h_prefix_format
         
         self.hmanager = hmanager
@@ -298,6 +298,7 @@ class DataloaderManager:
         self.icl_k = args.icl_k
         self.icl_sampling = icl_sampling
         self.iid_probability = iid_probability
+        self.icl_y_noise = icl_y_noise
         self.mix_prob_train1 = args.mix_prob_train1
 
         self.batch_size = args.batch_size
@@ -415,7 +416,10 @@ class DataloaderManager:
             xy_seq_hmask = []
             xy_seq_smask = []
             for x, y in zip(x_seq, y_seq):
-                xy_seq      .extend([x  , y  , self.tokens[',']])
+                if random.random() < self.icl_y_noise:
+                    xy_seq  .extend([x  , 1-y, self.tokens[',']])
+                else:
+                    xy_seq  .extend([x  , y  , self.tokens[',']])
                 xy_seq_xmask.extend([1.0, 0.0, 0.0             ])
                 xy_seq_ymask.extend([0.0, 1.0, 0.0             ])
                 xy_seq_zmask.extend([0.0, 0.0, 0.0             ])

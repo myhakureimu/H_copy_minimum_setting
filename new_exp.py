@@ -21,6 +21,7 @@ parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
 parser.add_argument('--wandb', default=0, type=int)
 
+parser.add_argument('--HEAD', default='YNOISE', type=str)
 parser.add_argument('--exp_name', default='TableGeneralization', type=str)
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
@@ -45,6 +46,7 @@ parser.add_argument('--icl_k', default=4, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--sampling_disparity', default=1.0, type=float)
+parser.add_argument('--icl_y_noise', default=0.0, type=float)
 parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 
@@ -339,6 +341,7 @@ if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
              +'_'+ 'num_x='+str(args.num_x) \
              +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
+             +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
              +'_'+ 'random_seed='+str(args.random_seed)
     model_hypers = 'modelName='+str(args.modelName) \
              +'_'+ 'depth='+str(args.depth) \
@@ -476,7 +479,8 @@ if 1:
         split = 'train',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
-        iid_probability = iid_probability
+        iid_probability = iid_probability,
+        icl_y_noise = args.icl_y_noise
     )
     test__dmanager = DataloaderManager(
         args,
@@ -484,7 +488,8 @@ if 1:
         split = 'test_',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
-        iid_probability = iid_probability
+        iid_probability = iid_probability,
+        icl_y_noise = args.icl_y_noise
     )
     opt___dmanager = DataloaderManager(
         args,
@@ -505,7 +510,7 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'ModelvsExp {args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
+            project= f'{args.HEAD} {args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
@@ -548,7 +553,7 @@ if 1:
     print('***** ' + hdata_hypers + ' *****')
     print('***** ' + model_hypers + ' *****')
     print('***** ' + optim_hypers + ' *****')
-    folder = 'saved/'+args.exp_name+'/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
+    folder = 'saved/'+args.HEAD+args.exp_name+'/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
     
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -606,12 +611,12 @@ if 1:
             max_seq_length = args.llm_max_length)
 
     model.cuda()
-    total_params = sum(p.numel() for p in model._read_in.parameters())
-    print(f"Total number of parameters: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.parameters())
-    print(f"Total number of parameters: {total_params}")
-    total_params = sum(p.numel() for p in model._read_out.parameters())
-    print(f"Total number of parameters: {total_params}")
+    # total_params = sum(p.numel() for p in model._read_in.parameters())
+    # print(f"Total number of parameters: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.parameters())
+    # print(f"Total number of parameters: {total_params}")
+    # total_params = sum(p.numel() for p in model._read_out.parameters())
+    # print(f"Total number of parameters: {total_params}")
     #print(model)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd, betas = (0.9, 0.999))
     
@@ -653,14 +658,14 @@ if 1:
                 wandb_train_info['global_step'] = epoch
                 wandb.log(wandb_train_info, step=epoch, commit=False)
 
-        if epoch%8 == 1:
+        if epoch%8 == 0:
             phase = 'test_'
             wandb_valid_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
                 wandb_valid_info['global_step'] = epoch
                 wandb.log(wandb_valid_info, step=epoch, commit=False)
 
-        if epoch%8 == 1:
+        if epoch%8 == 0:
             phase = 'test_'
             wandb_valid_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
