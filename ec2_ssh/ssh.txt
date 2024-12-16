@@ -1,12 +1,18 @@
 ssh -i /home/clannad/Dropbox/0A2024Fall/H_copy_minimum_setting/ec2_ssh/ziqianlin.pem ec2-user@ec2-184-72-210-168.compute-1.amazonaws.com
-
+ssh -i /home/clannad/Dropbox/0A2024Fall/H_copy_minimum_setting/ec2_ssh/ziqianlin.pem ec2-user@ec2-98-84-101-159.compute-1.amazonaws.com
 
 111
 
-conda install setproctitle
-conda install matplotlib
-conda install wandb
-conda install tqdm
-conda install transformers
+conda install setproctitle -y
+conda install matplotlib -y
+conda install wandb -y
+conda install tqdm -y
+conda install transformers -y
 
 pip install mamba-ssm
+
+
+https://533267282842.signin.aws.amazon.com/console
+ziqian
+$eA7a3&=
+SxwyzweI2@314
