@@ -417,7 +417,10 @@ class DataloaderManager:
             xy_seq_smask = []
             for x, y in zip(x_seq, y_seq):
                 if random.random() < self.icl_y_noise:
-                    xy_seq  .extend([x  , 1-y, self.tokens[',']])
+                    #print(y)
+                    n_y_pool = [candidate for candidate in self.tokens['ys'] if candidate != y]
+                    n_y = np.random.choice(n_y_pool)
+                    xy_seq  .extend([x  , n_y, self.tokens[',']])
                 else:
                     xy_seq  .extend([x  , y  , self.tokens[',']])
                 xy_seq_xmask.extend([1.0, 0.0, 0.0             ])

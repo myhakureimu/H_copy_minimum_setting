@@ -523,6 +523,8 @@ if 1:
                 'icl_k': args.icl_k,
                 'loss_on': args.loss_on,
                 'icl_sampling': args.icl_sampling,
+                'sampling_disparity': args.sampling_disparity,
+                'icl_y_noise': args.icl_y_noise,
                 'h_prefix_format': args.h_prefix_format,
                 'mix_prob_train1': args.mix_prob_train1,
 
