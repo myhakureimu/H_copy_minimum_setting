@@ -22,8 +22,8 @@ parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
 parser.add_argument('--wandb', default=0, type=int)
 
-parser.add_argument('--HEAD', default='YNOISE', type=str)
-parser.add_argument('--exp_name', default='TableGeneralization', type=str)
+parser.add_argument('--HEAD', default='TEST', type=str)
+parser.add_argument('--exp_name', default='TableLengthGeneralization', type=str)
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
 # parser.add_argument('--NormAtt', default=0, type=int)
@@ -35,7 +35,7 @@ parser.add_argument('--exp_name', default='TableGeneralization', type=str)
 parser.add_argument('--num_x', default=4, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
-parser.add_argument('--max_table_length', default=4, type=int)
+parser.add_argument('--max_table_length', default=8, type=int)
 # table_lengths
 parser.add_argument('--split_based_on', default='table', type=str)
 # split_ratio
@@ -54,7 +54,7 @@ parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 # model setting
 parser.add_argument('--modelName', default='dual', type=str, choices=['dual', 'mamba', 'lstm', 'gru'])
 parser.add_argument('--num_heads', default=2, type=int, help='number of heads for multi-headed attention (default: 8)')
-parser.add_argument('--depth', default=8, type=int, help='depth of the transformer architecture (default: 12)')
+parser.add_argument('--depth', default=2, type=int, help='depth of the transformer architecture (default: 12)')
 parser.add_argument('--embed_dim', default=128, type=int, help='embedding dimension of the transformer feature extractor (default: 256)')
 # parser.add_argument('--dropout', default=0.0, type=float, help='dropout')
 parser.add_argument('--llm_max_length', default=256, type=int, help='maximum sequence length of the input (default: 11)')
@@ -311,7 +311,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             
             if phase == 'test_':
                 p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
-                #print(p_seq.shape)
+                ##print(p_seq.shape)
                 correct_zs_per_h = []
                 count_zs_per_h = count_z_per_h
                 for iib in range(len(batch['spH_list'])):
@@ -337,6 +337,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_zs_{table_length}"] = batch_acc_zs.avg[table_length]
         
     return wandb_info
 
@@ -430,7 +431,8 @@ if 1:
                 else:
                     train_info = {5: 3000, 6: 3000, 7: 3000}  # Number of train tables to sample per length
                 test__info = {4:1500, 5: 1500, 6: 1500, 7: 1500, 8: 1500}  # Number of train tables to sample per length
-
+    if args.max_table_length < max(table_lengths):
+        raise Exception('max_table_length too small')
     # if args.exp_name == 'table_length_basiccheck':
     #     if split_based_on != 'table':
     #         raise Exception('Wrong setting')
@@ -617,12 +619,25 @@ if 1:
             max_seq_length = args.llm_max_length)
 
     model.cuda()
-    # total_params = sum(p.numel() for p in model._read_in.parameters())
-    # print(f"Total number of parameters: {total_params}")
-    # total_params = sum(p.numel() for p in model._backbone.parameters())
-    # print(f"Total number of parameters: {total_params}")
-    # total_params = sum(p.numel() for p in model._read_out.parameters())
-    # print(f"Total number of parameters: {total_params}")
+    #total_params = sum(p.numel() for p in model._read_in.parameters())
+    #print(f"Total number of parameters: {total_params}") 
+    total_params = sum(p.numel() for p in model._backbone.parameters())
+    print(f"_backbone: {total_params}")
+    total_params = sum(p.numel() for p in model._backbone.wte.parameters())
+    total_params_1 = total_params
+    print(f"_backbone.wte: {total_params}")
+    total_params = sum(p.numel() for p in model._backbone.wpe.parameters())
+    total_params_2 = total_params
+    print(f"_backbone.wpe: {total_params}")
+    total_params = sum(p.numel() for p in model._backbone.h.parameters())
+    total_params_3 = total_params
+    print(f"_backbone.h: {total_params}")
+    total_params = sum(p.numel() for p in model._backbone.ln_f.parameters())
+    total_params_4 = total_params
+    print(f"_backbone.ln_f: {total_params}")
+    print(total_params_1+total_params_2+total_params_3+total_params_4)
+    #total_params = sum(p.numel() for p in model._read_out.parameters())
+    #print(f"Total number of parameters: {total_params}")
     #print(model)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd, betas = (0.9, 0.999))
     
@@ -634,26 +649,23 @@ if 1:
     # if args.wandb:
     #     wandb_valid_info['global_step'] = epoch
     #     wandb.log(wandb_valid_info)
-    
-    start_from = 0
-    for epoch in range(1, args.epochs+1):
+
+    load_from = 0
+    for epoch in range(2, args.epochs+1):
         last_file = folder + f'EP={epoch-1}'
         curr_file = folder + f'EP={epoch}'
-        if epoch == 1:
-            last_exists = True
-        else:
-            last_exists = os.path.exists(last_file)
+        last_exists = os.path.exists(last_file)
         curr_exists = os.path.exists(curr_file)
         if last_exists and curr_exists:
-            start_from = epoch-1
+            load_from = epoch-1
 
-    if start_from != 0:
-        save_path = folder + f'EP={start_from}'
+    if load_from != 0:
+        save_path = folder + f'EP={load_from}'
         checkpoint = torch.load(save_path)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     
-    for epoch in range(start_from, args.epochs+1):
+    for epoch in range(load_from+1, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
         #print(model._read_out.weight.data)
         #print(table_lengths)
