@@ -336,6 +336,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_zs_{table_length}"] = batch_acc_zs.avg[table_length]
         
     return wandb_info
 
@@ -634,26 +635,23 @@ if 1:
     # if args.wandb:
     #     wandb_valid_info['global_step'] = epoch
     #     wandb.log(wandb_valid_info)
-    
-    start_from = 0
-    for epoch in range(1, args.epochs+1):
+
+    load_from = 0
+    for epoch in range(2, args.epochs+1):
         last_file = folder + f'EP={epoch-1}'
         curr_file = folder + f'EP={epoch}'
-        if epoch == 1:
-            last_exists = True
-        else:
-            last_exists = os.path.exists(last_file)
+        last_exists = os.path.exists(last_file)
         curr_exists = os.path.exists(curr_file)
         if last_exists and curr_exists:
-            start_from = epoch-1
+            load_from = epoch-1
 
-    if start_from != 0:
-        save_path = folder + f'EP={start_from}'
+    if load_from != 0:
+        save_path = folder + f'EP={load_from}'
         checkpoint = torch.load(save_path)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     
-    for epoch in range(start_from, args.epochs+1):
+    for epoch in range(load_from+1, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
         #print(model._read_out.weight.data)
         #print(table_lengths)
