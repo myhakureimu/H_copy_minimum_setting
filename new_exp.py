@@ -309,21 +309,22 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
             
-            p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
-            print(p_seq.shape)
-            correct_zs_per_h = []
-            count_zs_per_h = count_z_per_h
-            for iib in range(len(batch['spH_list'])):
-                valid_zs = find_valid_zs(batch['spH_prefix_list_info']['spH_prefix_list'][iib],
-                                         batch['xy_seq_list_info'    ]['xy_seq_list'    ][iib],
-                                         pad_token=tokens['pad'], predict_token=tokens['>'], comma_token=tokens[','])
-                if p_seq[iib] in valid_zs:
-                    correct_zs_per_h.append(1)
-                else:
-                    correct_zs_per_h.append(0)
-            correct_zs_per_h = torch.tensor(correct_zs_per_h)
+            if phase == 'test_':
+                p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
+                #print(p_seq.shape)
+                correct_zs_per_h = []
+                count_zs_per_h = count_z_per_h
+                for iib in range(len(batch['spH_list'])):
+                    valid_zs = find_valid_zs(batch['spH_prefix_list_info']['spH_prefix_list'][iib],
+                                            batch['xy_seq_list_info'    ]['xy_seq_list'    ][iib],
+                                            pad_token=tokens['pad'], predict_token=tokens['>'], comma_token=tokens[','])
+                    if p_seq[iib] in valid_zs:
+                        correct_zs_per_h.append(1)
+                    else:
+                        correct_zs_per_h.append(0)
+                correct_zs_per_h = torch.tensor(correct_zs_per_h)
 
-            batch_acc_zs.update(table_length_batch, correct_zs_per_h.data, count_zs_per_h)
+                batch_acc_zs.update(table_length_batch, correct_zs_per_h.data, count_zs_per_h)
 
             #pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
             pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} acc_zs={batch_acc_zs.avg[0]:.3f}")
