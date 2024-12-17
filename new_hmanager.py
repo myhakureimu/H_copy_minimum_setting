@@ -820,7 +820,7 @@ if __name__ == '__main__':
 
     ### hmanager
     args.num_x = 4
-    args.num_y = 16
+    args.num_y = 2
     args.max_table_length = 4
     # table_lengths
     args.split_based_on = 'table'
