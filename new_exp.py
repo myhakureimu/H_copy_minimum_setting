@@ -344,7 +344,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
-             +'_'+ 'num_x='+str(args.num_x) \0
+             +'_'+ 'num_x='+str(args.num_x) \
              +'_'+ 'num_y='+str(args.num_y) \
              +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
              +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
