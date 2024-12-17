@@ -674,24 +674,25 @@ if 1:
         if 1:#epoch!=0: #train
             phase = 'train'
             wandb_train_info = train_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
-            if args.wandb:
-                wandb_train_info['global_step'] = epoch
-                wandb.log(wandb_train_info, step=epoch, commit=False)
 
         if epoch%8 == 0:
             phase = 'test_'
-            wandb_valid_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
-            if args.wandb:
-                wandb_valid_info['global_step'] = epoch
-                wandb.log(wandb_valid_info, step=epoch, commit=False)
-
-        if epoch%8 == 0:
+            wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
             phase = 'test_'
-            wandb_valid_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
-            if args.wandb:
-                wandb_valid_info['global_step'] = epoch
-                wandb.log(wandb_valid_info, step=epoch, commit=False)
+            wandb_test2_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
+        else:
+            wandb_test1_info = {}
+            wandb_test2_info = {}
         
+        # Combine all metrics into one dictionary
+        combined_metrics = {}
+        combined_metrics.update(wandb_train_info)
+        combined_metrics.update(wandb_test1_info)
+        combined_metrics.update(wandb_test2_info)
+        if args.wandb:
+            combined_metrics['global_step'] = epoch
+            wandb.log(combined_metrics, step=epoch)
+
         save_path = folder + f'EP={epoch}'
         print(save_path)
         torch.save({
