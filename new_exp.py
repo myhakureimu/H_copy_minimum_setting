@@ -344,7 +344,8 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
-             +'_'+ 'num_x='+str(args.num_x) \
+             +'_'+ 'num_x='+str(args.num_x) \0
+             +'_'+ 'num_y='+str(args.num_y) \
              +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
              +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
              +'_'+ 'random_seed='+str(args.random_seed)
@@ -516,14 +517,15 @@ if 1:
         name = f'modelName={args.modelName}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'{args.HEAD} {args.exp_name} icl={args.icl_sampling} num_x={args.num_x} num_y={args.num_y}',
+            project= f'{args.HEAD} {args.exp_name} icl={args.icl_sampling} num_x={args.num_x}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
             # Track hyperparameters and run metadata
             config={
                 'seed': args.random_seed,
-
+                'num_x': args.num_x,
+                'num_y': args.num_y,
                 'max_table_length': args.max_table_length,
                 
                 'icl_k': args.icl_k,
