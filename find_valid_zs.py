@@ -57,7 +57,11 @@ def spH_prefix_to_z2x2y(spH_prefix, pad_token=6, predict_token=8, comma_token=9)
     return z2x2y
 
 def xy_seq_to_x2y(xy_seq, comma_token=9):
+    print('xy_seq')
+    print(xy_seq)
     xy_list = split_tensor_by_value(xy_seq, comma_token)
+    print('xy_list')
+    print(xy_list)
     x2y = {}
     for xy in xy_list:
         x2y[xy[0].item()] = xy[1].item()

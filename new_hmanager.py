@@ -4,8 +4,11 @@ from torch.utils.data import Dataset, DataLoader
 import itertools
 import math
 import random
-
+import time
+from tqdm import tqdm
 from construct_shuffled_nanned_table import construct_shuffled_nanned_table
+from efficient_sampling_combinations import sample_random_combinations
+
 
 def repeat_list_to_length(lst, K):
     # Repeat the list as many times as needed and slice to exactly K elements
@@ -28,6 +31,9 @@ class HypothesisManager:
         self.split_ratio = split_ratio
         self.train_info = train_info
         self.test__info = test__info
+
+        self.max_num_tables = 2**15
+        self.efficiency_threshold = 2**20
         """
         Initializes the HypothesisManager with the specified parameters.
 
@@ -136,8 +142,8 @@ class HypothesisManager:
         """
 
         self.all_hypotheses = list(itertools.product(list(range(self.num_y)), repeat=self.num_x))
-        self.num_all_h = len(self.all_hypotheses)  # Should be 2^n
-        if self.num_all_h != (2**self.num_x):
+        self.num_all_h = len(self.all_hypotheses)  # Should be num_y**num_x
+        if self.num_all_h != (self.num_y**self.num_x):
             raise Exception('wrong num_all_h')
     
     def _split_based_on_hypotheses(self):
@@ -176,9 +182,44 @@ class HypothesisManager:
         np.random.seed(self.random_seed)
 
         for length in self.table_lengths:
-            possible_tables = list(itertools.combinations(range(self.num_all_h), length))
+            print(f'***** Table Length = {length} *****')
+            #all_tables = list(itertools.combinations(range(self.num_all_h), length))
+            #print(len(all_tables))
+            num_total = math.comb(self.num_all_h, length)
+            print(num_total, type(num_total))
+            if num_total <= self.max_num_tables:
+                time_A = time.time()
+                possible_tables = list(itertools.combinations(range(self.num_all_h), length))
+                time_B = time.time()
+                print(f'generate time = {time_B-time_A}')
+            elif num_total <= self.efficiency_threshold:
+                time_A = time.time()
+                print('apply reservoir sampling')
+                possible_tables = []
+                for i, combo in tqdm(enumerate(itertools.combinations(range(self.num_all_h), length))):
+                    if i < self.max_num_tables:
+                        # Initially fill up the reservoir
+                        possible_tables.append(combo)
+                    else:
+                        # Once full, randomly replace elements with decreasing probability
+                        r = random.randint(0, i)
+                        if r < self.max_num_tables:
+                            possible_tables[r] = combo
+                print(len(possible_tables))
+                time_B = time.time()
+                print(f'generate time = {time_B-time_A}')
+            else:
+                time_A = time.time()
+                print('apply efficient generation')
+                possible_tables = sample_random_combinations(self.num_all_h, length, self.max_num_tables)
+                print(len(possible_tables))
+                time_B = time.time()
+                print(f'generate time = {time_B-time_A}')
+
+
             random.shuffle(possible_tables)
-            print(possible_tables)
+            time_C = time.time()
+            print(f'shuffle time = {time_C-time_B}')
             split_ratio = self.split_ratio
             if sum(split_ratio) != 1.0:
                 total = sum(split_ratio)
@@ -419,8 +460,12 @@ class DataloaderManager:
             for x, y in zip(x_seq, y_seq):
                 if random.random() < self.icl_y_noise:
                     #print(y)
+                    #print(self.tokens['ys'])
+                    #print(y)
                     n_y_pool = [candidate for candidate in self.tokens['ys'] if candidate != y]
+                    #print(n_y_pool)
                     n_y = np.random.choice(n_y_pool)
+                    #print(n_y)
                     xy_seq  .extend([x  , n_y, self.tokens[',']])
                 else:
                     xy_seq  .extend([x  , y  , self.tokens[',']])
@@ -774,8 +819,8 @@ if __name__ == '__main__':
     args.random_seed = 2023
 
     ### hmanager
-    args.num_x = 2
-    args.num_y = 2
+    args.num_x = 4
+    args.num_y = 16
     args.max_table_length = 4
     # table_lengths
     args.split_based_on = 'table'
@@ -786,8 +831,10 @@ if __name__ == '__main__':
     ### dataloader
     split = 'train'
 
-    args.icl_k = 2
+    args.icl_k = 4
     args.icl_sampling = 'ordered'
+    args.sampling_disparity = 1.0
+    args.icl_y_noise = 1.0
     args.h_prefix_format = 0
     args.mix_prob_train1 = 0.5  # Probability for 'mix' mode
 
@@ -849,7 +896,9 @@ if __name__ == '__main__':
         hmanager = hmanager,
         split = split,
         preshuffle = False,
-        icl_sampling = 'optimal'
+        icl_sampling = 'iid',
+        iid_probability = None,
+        icl_y_noise = args.icl_y_noise
     )
 
     # Get the data loader for testing
