@@ -20,10 +20,11 @@ matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
 parser = argparse.ArgumentParser(description='PyTorch In-context Learning Training Code')
 parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
-parser.add_argument('--wandb', default=0, type=int)
+parser.add_argument('--wandb', default=1, type=int)
 
-parser.add_argument('--HEAD', default='TEST', type=str)
-parser.add_argument('--exp_name', default='TableLengthGeneralization', type=str)
+parser.add_argument('--HEAD', default='TEST ICL', type=str)
+parser.add_argument('--exp_name', default='TableGeneralization', type=str)
+parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z', 'h+xy', 'xy'])
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
 # parser.add_argument('--NormAtt', default=0, type=int)
@@ -35,7 +36,7 @@ parser.add_argument('--exp_name', default='TableLengthGeneralization', type=str)
 parser.add_argument('--num_x', default=4, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
-parser.add_argument('--max_table_length', default=8, type=int)
+parser.add_argument('--max_table_length', default=4, type=int)
 # table_lengths
 parser.add_argument('--split_based_on', default='table', type=str)
 # split_ratio
@@ -43,7 +44,7 @@ parser.add_argument('--split_based_on', default='table', type=str)
 # test__info
 
 # H+ICL format for dataloadermanager
-parser.add_argument('--icl_k', default=4, type=int)
+parser.add_argument('--icl_k', default=12, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--sampling_disparity', default=1.0, type=float)
@@ -54,7 +55,7 @@ parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 # model setting
 parser.add_argument('--modelName', default='dual', type=str, choices=['dual', 'mamba', 'lstm', 'gru'])
 parser.add_argument('--num_heads', default=2, type=int, help='number of heads for multi-headed attention (default: 8)')
-parser.add_argument('--depth', default=2, type=int, help='depth of the transformer architecture (default: 12)')
+parser.add_argument('--depth', default=8, type=int, help='depth of the transformer architecture (default: 12)')
 parser.add_argument('--embed_dim', default=128, type=int, help='embedding dimension of the transformer feature extractor (default: 256)')
 # parser.add_argument('--dropout', default=0.0, type=float, help='dropout')
 parser.add_argument('--llm_max_length', default=256, type=int, help='maximum sequence length of the input (default: 11)')
@@ -201,6 +202,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     batch_loss = AverageMeter(table_lengths)
     batch_acc_x = AverageMeter(table_lengths)
     batch_acc_y = AverageMeter(table_lengths)
+    batch_acc_icl = AverageMeter(list(np.arange(1, args.icl_k+1)))
     batch_acc_z = AverageMeter(table_lengths)
     batch_acc_h = AverageMeter(table_lengths)
     batch_acc_s = AverageMeter(table_lengths)
@@ -241,20 +243,14 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             z_suffix_hmask = torch.stack(batch['z_suffix_list_info']['z_suffix_hmask_list']).cuda().to(torch.float32)
             z_suffix_smask = torch.stack(batch['z_suffix_list_info']['z_suffix_smask_list']).cuda().to(torch.float32)
 
-            # print('*'*20)
-            # print(spH_prefix[0])
-            # print(xy_seq[0])
-            # print(z_suffix[0])
-            # break
-
-            all_seq = torch.cat([spH_prefix, xy_seq, z_suffix], dim=1)
-
-            i_seq = all_seq[:, :-1]
-            o_seq = all_seq[:, 1:]
-
-            p_seq = model.forward(i_seq)
+            correct_xmask = torch.cat([spH_prefix_xmask, xy_seq_xmask, z_suffix_xmask], dim=1).to(torch.float32)
+            correct_ymask = torch.cat([spH_prefix_ymask, xy_seq_ymask, z_suffix_ymask], dim=1).to(torch.float32)
+            correct_zmask = torch.cat([spH_prefix_zmask, xy_seq_zmask, z_suffix_zmask], dim=1).to(torch.float32)
+            correct_hmask = torch.cat([spH_prefix_hmask, xy_seq_hmask, z_suffix_hmask], dim=1).to(torch.float32)
+            correct_smask = torch.cat([spH_prefix_smask, xy_seq_smask, z_suffix_smask], dim=1).to(torch.float32)
+            icl_y_mask    = torch.cat([torch.zeros_like(spH_prefix), xy_seq_ymask, torch.zeros_like(z_suffix_zmask)], dim=1).to(torch.float32)
             
-            losses = loss_f(p_seq.transpose(1, 2), o_seq.to(torch.long))
+            all_seq = torch.cat([spH_prefix, xy_seq, z_suffix], dim=1)
 
             if args.loss_on == 'all':
                 #loss = torch.mean(losses)
@@ -273,9 +269,46 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
                 losses_mask = torch.cat([torch.zeros_like(spH_prefix),
                                         torch.zeros_like(xy_seq),
                                         z_suffix_zmask], dim=1).float()
-            losses_mask = losses_mask[:, 1:]
-            loss = torch.sum(losses*losses_mask)/torch.sum(losses_mask)
+            
+            # process training content
+            cut_h  = spH_prefix.shape[1]
+            cut_xy = xy_seq    .shape[1]
+            cut_z  = z_suffix  .shape[1]
+            if args.training_content == 'h+xy+z':
+                start = 0
+                end   = cut_h + cut_xy + cut_z
+            elif args.training_content == 'h+xy':
+                start = 0
+                end   = cut_h + cut_xy
+            elif args.training_content == 'xy':
+                start = cut_h
+                end   = cut_h + cut_xy
 
+
+
+            all_seq     = all_seq    [:, start:end]
+            losses_mask = losses_mask[:, start:end]
+            correct_xmask = correct_xmask[:, start:end]
+            correct_ymask = correct_ymask[:, start:end]
+            correct_zmask = correct_zmask[:, start:end]
+            correct_hmask = correct_hmask[:, start:end]
+            correct_smask = correct_smask[:, start:end]
+            icl_y_mask    = icl_y_mask   [:, start:end]
+
+            i_seq = all_seq[:, :-1]
+            o_seq = all_seq[:, 1:]
+            losses_mask = losses_mask[:, 1:]
+            correct_xmask = correct_xmask[:, 1:]
+            correct_ymask = correct_ymask[:, 1:]
+            correct_zmask = correct_zmask[:, 1:]
+            correct_hmask = correct_hmask[:, 1:]
+            correct_smask = correct_smask[:, 1:]
+            icl_y_mask    = icl_y_mask   [:, 1:]
+            
+            p_seq = model.forward(i_seq)
+            losses = loss_f(p_seq.transpose(1, 2), o_seq.to(torch.long))
+            loss = torch.sum(losses*losses_mask)/torch.sum(losses_mask)
+            
             if phase == 'train':
                 # Backpropagate gradients and update model
                 optimizer.zero_grad()
@@ -289,32 +322,33 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
                 correct = (torch.argmax(p_seq, dim=2) == o_seq)
 
-                correct_xmask = torch.cat([spH_prefix_xmask, xy_seq_xmask, z_suffix_xmask], dim=1).to(torch.float32)[:, 1:]
-                correct_ymask = torch.cat([spH_prefix_ymask, xy_seq_ymask, z_suffix_ymask], dim=1).to(torch.float32)[:, 1:]
-                correct_zmask = torch.cat([spH_prefix_zmask, xy_seq_zmask, z_suffix_zmask], dim=1).to(torch.float32)[:, 1:]
-                correct_hmask = torch.cat([spH_prefix_hmask, xy_seq_hmask, z_suffix_hmask], dim=1).to(torch.float32)[:, 1:]
-                correct_smask = torch.cat([spH_prefix_smask, xy_seq_smask, z_suffix_smask], dim=1).to(torch.float32)[:, 1:]
-
                 correct_x_per_h = torch.sum(correct*correct_xmask, dim=1)
                 correct_y_per_h = torch.sum(correct*correct_ymask, dim=1)
                 correct_z_per_h = torch.sum(correct*correct_zmask, dim=1)
                 correct_h_per_h = torch.sum(correct*correct_hmask, dim=1)
                 correct_s_per_h = torch.sum(correct*correct_smask, dim=1)
-
+                correct_icl_y   = torch.mean(1.0*(correct[icl_y_mask==1]).reshape([args.batch_size,-1]), dim=0)
+                #print(correct_icl_y)
                 count_x_per_h = torch.sum(correct_xmask, dim=1)
                 count_y_per_h = torch.sum(correct_ymask, dim=1)
                 count_z_per_h = torch.sum(correct_zmask, dim=1)
                 count_h_per_h = torch.sum(correct_hmask, dim=1)
                 count_s_per_h = torch.sum(correct_smask, dim=1)
-
+                count_icl_y   = torch.ones_like(correct_icl_y)
+                icl_pos = [pos+1 for pos in range(args.icl_k)]
             # Record the loss and elapsed time
+            # print(table_length_batch)
+            # print(loss_per_h.shape)
+            # print(count_per_h)
             batch_loss .update(table_length_batch, loss_per_h     .data, count_per_h)
             batch_acc_x.update(table_length_batch, correct_x_per_h.data, count_x_per_h)
             batch_acc_y.update(table_length_batch, correct_y_per_h.data, count_y_per_h)
+            batch_acc_icl.update(icl_pos         , correct_icl_y  .data, count_icl_y)
             batch_acc_z.update(table_length_batch, correct_z_per_h.data, count_z_per_h)
             batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
-            
+            #print(batch_acc_y.avg)
+            #print(batch_acc_icl.avg)
             if phase == 'test_':
                 p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
                 ##print(p_seq.shape)
@@ -344,7 +378,10 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_zs_{table_length}"] = batch_acc_zs.avg[table_length]
+        for pos in range(args.icl_k):
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}_icl/pos{pos+1}"] = batch_acc_icl.avg[pos+1]
         
+
     return wandb_info
 
 
