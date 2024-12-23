@@ -69,7 +69,10 @@ parser.add_argument('--epochs', default=512, type=int, help='number of total epo
 parser.set_defaults(augment=True)
 args = parser.parse_args()
 
-args.n_steps = int(32*512/args.batch_size)
+if args.exp_name == 'NUMTRAIN':
+    args.n_steps = int(args.num_training_tables * 16 / args.batch_size)
+else:
+    args.n_steps = int(1024 * 16 / args.batch_size)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 setproctitle.setproctitle(f'{args.exp_name} {args.sampling_disparity} {args.random_seed}')
@@ -408,7 +411,10 @@ if 1:
             if args.num_x == 4:
                 table_lengths = [4]
                 split_ratio = [0.7, 0.3]  # Ratios for train and test splits
-                train_info = {4: 1274}  # Number of train tables to sample per length
+                if args.num_training_tables != 0:
+                    train_info = {4: args.num_training_tables}  # Number of train tables to sample per length
+                else:
+                    train_info = {4: 1274}  # Number of train tables to sample per length
                 test__info = {4: 526}  # Number of test tables to sample per length
             if args.num_x == 5:
                 table_lengths = [4]
@@ -657,6 +663,15 @@ if 1:
     # if args.wandb:
     #     wandb_valid_info['global_step'] = epoch
     #     wandb.log(wandb_valid_info)
+    epoch = 0
+    if epoch%16 == 0:
+        phase = 'test_'
+        wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
+        phase = 'test_'
+        wandb_test2_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
+    else:
+        wandb_test1_info = {}
+        wandb_test2_info = {}
 
     load_from = 0
     for epoch in range(2, args.epochs+1):
@@ -681,7 +696,7 @@ if 1:
             phase = 'train'
             wandb_train_info = train_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
 
-        if epoch%8 == 0:
+        if epoch%16 == 0:
             phase = 'test_'
             wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
             phase = 'test_'

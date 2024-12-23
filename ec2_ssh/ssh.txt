@@ -12,7 +12,12 @@ conda install htop -y
 pip install mamba-ssm
 
 
+Console sign-in URL
+ 
 https://533267282842.signin.aws.amazon.com/console
+User name
+ 
 ziqian
-$eA7a3&=
-SxwyzweI2@314
+Console password
+ 
+Ziqianleelab1
