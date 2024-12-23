@@ -324,13 +324,13 @@ class HypothesisManager:
         return I
 
 class DataloaderManager:
-    def __init__(self, args, hmanager, split, preshuffle, icl_sampling, iid_probability=None, icl_y_noise=None):
+    def __init__(self, args, hmanager, n_steps, split, preshuffle, icl_sampling, iid_probability=None, icl_y_noise=None):
         self.h_prefix_format = args.h_prefix_format
         
         self.hmanager = hmanager
         self.split = split
         self.preshuffle = preshuffle
-        self.dataset = HDataset(args=args, hmanager=self.hmanager, split=split)
+        self.dataset = HDataset(args=args, hmanager=self.hmanager, split=split, n_steps=n_steps)
 
         self.tokens = self.hmanager.tokens
 
@@ -748,14 +748,14 @@ class DataloaderManager:
         return spH_prefix_list_info
     
 class HDataset(Dataset):
-    def __init__(self, args, hmanager, split):
+    def __init__(self, args, hmanager, split, n_steps):
         self.hmanager = hmanager
         self.split = split
 
         self.icl_sampling = args.icl_sampling
         self.mix_prob_train1 = args.mix_prob_train1
         self.batch_size = args.batch_size
-        self.n_steps = args.n_steps
+        self.n_steps = n_steps
 
         self.all_hypotheses = hmanager.all_hypotheses  # Access to all hypotheses
 

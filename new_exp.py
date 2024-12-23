@@ -69,8 +69,8 @@ parser.add_argument('--epochs', default=512, type=int, help='number of total epo
 parser.set_defaults(augment=True)
 args = parser.parse_args()
 
-if args.exp_name == 'NUMTRAIN':
-    args.n_steps = int(args.num_training_tables * 16 / args.batch_size)
+if args.HEAD == 'NUMTRAIN':
+    args.n_steps = int(32 * (args.num_training_tables**0.5) * 16 / args.batch_size)
 else:
     args.n_steps = int(1024 * 16 / args.batch_size)
 
@@ -353,6 +353,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
+             +'_'+ 'num_training_tables='+str(args.num_training_tables) \
              +'_'+ 'num_x='+str(args.num_x) \
              +'_'+ 'num_y='+str(args.num_y) \
              +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
@@ -495,6 +496,7 @@ if 1:
     train_dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
+        n_steps = args.n_steps,
         split = 'train',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
@@ -504,6 +506,7 @@ if 1:
     test__dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
+        n_steps = 1024,
         split = 'test_',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
@@ -513,6 +516,7 @@ if 1:
     opt___dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
+        n_steps = 1024,
         split = 'test_',
         preshuffle = True,
         icl_sampling = 'optimal'
@@ -548,7 +552,7 @@ if 1:
                 'h_prefix_format': args.h_prefix_format,
                 'mix_prob_train1': args.mix_prob_train1,
 
-                #'num_training_tables': args.num_training_tables,
+                'num_training_tables': args.num_training_tables,
 
                 'modelName': args.modelName,
                 'num_heads': args.num_heads,

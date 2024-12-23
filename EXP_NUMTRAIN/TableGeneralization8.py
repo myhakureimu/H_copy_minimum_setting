@@ -14,7 +14,7 @@ max_table_length = 4
 
 num_training_tables = 2**8
 
-epochs = 1024
+epochs = 768
 
 prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs {epochs} \
         --HEAD {HEAD} --exp_name {exp_name} --split_based_on {split_based_on} \
