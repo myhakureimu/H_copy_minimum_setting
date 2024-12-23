@@ -69,10 +69,7 @@ parser.add_argument('--epochs', default=512, type=int, help='number of total epo
 parser.set_defaults(augment=True)
 args = parser.parse_args()
 
-if args.HEAD == 'NUMTRAIN':
-    args.n_steps = int(32 * (args.num_training_tables**0.5) * 16 / args.batch_size)
-else:
-    args.n_steps = int(1024 * 16 / args.batch_size)
+args.n_steps = int(1024 * 16 / args.batch_size)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 setproctitle.setproctitle(f'{args.exp_name} {args.sampling_disparity} {args.random_seed}')
