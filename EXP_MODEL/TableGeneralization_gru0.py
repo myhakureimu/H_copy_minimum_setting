@@ -2,7 +2,7 @@ import numpy as np
 import os
 gpuIdxStr = '0'
 
-random_seed = 2024+int(gpuIdxStr)
+random_seed = 2023+int(gpuIdxStr)
 
 HEAD = 'MODEL'
 
@@ -29,7 +29,7 @@ wd_list = [0.0005] #[0.0002, 0.0005]
 
 batch_size_list = [16] #, 32, 64]
 
-modelName_list = ['dual'] #, 'nano']
+modelName_list = ['gru'] #, 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 
