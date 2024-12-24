@@ -674,6 +674,14 @@ if 1:
         wandb_test1_info = {}
         wandb_test2_info = {}
 
+    # Combine all metrics into one dictionary
+    combined_metrics = {}
+    combined_metrics.update(wandb_test1_info)
+    combined_metrics.update(wandb_test2_info)
+    if args.wandb:
+        combined_metrics['global_step'] = epoch
+        wandb.log(combined_metrics, step=epoch)
+
     load_from = 0
     for epoch in range(2, args.epochs+1):
         last_file = folder + f'EP={epoch-1}'

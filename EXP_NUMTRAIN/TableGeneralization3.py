@@ -2,7 +2,7 @@ import numpy as np
 import os
 gpuIdxStr = '0'
 
-random_seed = 2024+int(gpuIdxStr)
+random_seed = 2023+int(gpuIdxStr)
 
 HEAD = 'NUMTRAIN'
 
@@ -12,7 +12,7 @@ split_based_on, icl_k, num_x, num_y = 'table', 4, 4, 2
 
 max_table_length = 4
 
-num_training_tables = 2**4
+num_training_tables = 2**3
 
 epochs = 768
 

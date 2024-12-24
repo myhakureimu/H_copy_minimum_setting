@@ -4,7 +4,7 @@ gpuIdxStr = '0'
 
 random_seed = 2024+int(gpuIdxStr)
 
-HEAD = 'NUMTRAIN'
+HEAD = 'MODEL'
 
 exp_name = 'TableGeneralization'
 
@@ -12,20 +12,20 @@ split_based_on, icl_k, num_x, num_y = 'table', 4, 4, 2
 
 max_table_length = 4
 
-num_training_tables = 2**4
+num_training_tables = 0
 
-epochs = 768
+epochs = 512
 
 prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs {epochs} \
         --HEAD {HEAD} --exp_name {exp_name} --split_based_on {split_based_on} \
         --num_x {num_x} --num_y {num_y} \
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
-depth_list = [8]
+depth_list = [2]
 
-lr_list = [0.00002]
+lr_list = [0.0005] #, 0.00005, 0.00010]
 
-wd_list = [0.0005]
+wd_list = [0.0005] #[0.0002, 0.0005]
 
 batch_size_list = [16] #, 32, 64]
 
