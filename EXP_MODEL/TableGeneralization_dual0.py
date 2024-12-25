@@ -2,7 +2,7 @@ import numpy as np
 import os
 gpuIdxStr = '0'
 
-random_seed = 2024+int(gpuIdxStr)
+random_seed = 2023+int(gpuIdxStr)
 
 HEAD = 'MODEL'
 
