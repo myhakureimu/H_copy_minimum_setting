@@ -8,9 +8,9 @@ HEAD = 'MODEL'
 
 exp_name = 'TableLengthGeneralization'
 
-split_based_on, icl_k, num_x, num_y = 'table', 4, 4, 2
+split_based_on, icl_k, num_x, num_y = 'table', 5, 5, 2
 
-max_table_length = 4
+max_table_length = 8
 
 num_training_tables = 0
 

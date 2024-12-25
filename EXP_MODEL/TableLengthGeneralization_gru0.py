@@ -8,9 +8,9 @@ HEAD = 'MODEL'
 
 exp_name = 'TableLengthGeneralization'
 
-split_based_on, icl_k, num_x, num_y = 'table', 4, 4, 2
+split_based_on, icl_k, num_x, num_y = 'table', 5, 5, 2
 
-max_table_length = 4
+max_table_length = 8
 
 num_training_tables = 0
 
@@ -29,7 +29,7 @@ wd_list = [0.0005] #[0.0002, 0.0005]
 
 batch_size_list = [16] #, 32, 64]
 
-modelName_list = ['dual'] #, 'nano']
+modelName_list = ['gru'] #, 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 

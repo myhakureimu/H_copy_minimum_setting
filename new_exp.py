@@ -435,9 +435,9 @@ if 1:
                 split_ratio = [2/3, 1/3]
                 if args.num_training_tables != 0:
                     train_info = {
-                        4: args.num_training_tables,
                         5: args.num_training_tables,
-                        6: args.num_training_tables
+                        6: args.num_training_tables,
+                        7: args.num_training_tables
                     }  # Number of train tables to sample per length
                 else:
                     train_info = {5: 3000, 6: 3000, 7: 3000}  # Number of train tables to sample per length
