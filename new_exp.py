@@ -636,21 +636,21 @@ if 1:
     model.cuda()
     #total_params = sum(p.numel() for p in model._read_in.parameters())
     #print(f"Total number of parameters: {total_params}") 
-    total_params = sum(p.numel() for p in model._backbone.parameters())
-    print(f"_backbone: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.wte.parameters())
-    total_params_1 = total_params
-    print(f"_backbone.wte: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.wpe.parameters())
-    total_params_2 = total_params
-    print(f"_backbone.wpe: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.h.parameters())
-    total_params_3 = total_params
-    print(f"_backbone.h: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.ln_f.parameters())
-    total_params_4 = total_params
-    print(f"_backbone.ln_f: {total_params}")
-    print(total_params_1+total_params_2+total_params_3+total_params_4)
+    # total_params = sum(p.numel() for p in model._backbone.parameters())
+    # print(f"_backbone: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.wte.parameters())
+    # total_params_1 = total_params
+    # print(f"_backbone.wte: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.wpe.parameters())
+    # total_params_2 = total_params
+    # print(f"_backbone.wpe: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.h.parameters())
+    # total_params_3 = total_params
+    # print(f"_backbone.h: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.ln_f.parameters())
+    # total_params_4 = total_params
+    # print(f"_backbone.ln_f: {total_params}")
+    # print(total_params_1+total_params_2+total_params_3+total_params_4)
     #total_params = sum(p.numel() for p in model._read_out.parameters())
     #print(f"Total number of parameters: {total_params}")
     #print(model)

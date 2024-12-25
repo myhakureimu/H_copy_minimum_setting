@@ -6,7 +6,7 @@ random_seed = 2024+int(gpuIdxStr)
 
 HEAD = 'MODEL'
 
-exp_name = 'TableGeneralization'
+exp_name = 'HypothesisGeneralization'
 
 split_based_on, icl_k, num_x, num_y = 'table', 4, 4, 2
 
@@ -21,15 +21,15 @@ prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
         --num_x {num_x} --num_y {num_y} \
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
-depth_list = [2]
+depth_list = [8]
 
-lr_list = [0.001] #, 0.00005, 0.00010]
+lr_list = [0.00002]
 
-wd_list = [0.0005] #[0.0002, 0.0005]
+wd_list = [0.0005]
 
 batch_size_list = [16] #, 32, 64]
 
-modelName_list = ['gru'] #, 'nano']
+modelName_list = ['dual'] #, 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 

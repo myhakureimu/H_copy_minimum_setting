@@ -6,7 +6,7 @@ random_seed = 2024+int(gpuIdxStr)
 
 HEAD = 'MODEL'
 
-exp_name = 'TableGeneralization'
+exp_name = 'TableLengthGeneralization'
 
 split_based_on, icl_k, num_x, num_y = 'table', 4, 4, 2
 
@@ -23,13 +23,13 @@ prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
 
 depth_list = [2]
 
-lr_list = [0.001] #, 0.00005, 0.00010]
+lr_list = [0.0005] #, 0.00005, 0.00010]
 
 wd_list = [0.0005] #[0.0002, 0.0005]
 
 batch_size_list = [16] #, 32, 64]
 
-modelName_list = ['gru'] #, 'nano']
+modelName_list = ['dual'] #, 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 

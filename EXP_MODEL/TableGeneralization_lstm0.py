@@ -29,7 +29,7 @@ wd_list = [0.0005] #[0.0002, 0.0005]
 
 batch_size_list = [16] #, 32, 64]
 
-modelName_list = ['dual'] #, 'nano']
+modelName_list = ['lstm'] #, 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 
