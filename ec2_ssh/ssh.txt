@@ -1,5 +1,5 @@
-3 ssh -i /home/clannad/Dropbox/0A2024Fall/H_copy_minimum_setting/ec2_ssh/ziqianlin.pem ec2-user@ec2-34-229-213-1.compute-1.amazonaws.com
-4 ssh -i /home/clannad/Dropbox/0A2024Fall/H_copy_minimum_setting/ec2_ssh/ziqianlin.pem ec2-user@ec2-35-175-196-187.compute-1.amazonaws.com
+3 ssh -i /home/clannad/Dropbox/0A2024Fall/H_copy_minimum_setting/ec2_ssh/ziqianlin.pem ec2-user@ec2-98-84-155-45.compute-1.amazonaws.com
+4 ssh -i /home/clannad/Dropbox/0A2024Fall/H_copy_minimum_setting/ec2_ssh/ziqianlin.pem ec2-user@ec2-54-162-133-2.compute-1.amazonaws.com
 
 111
 
