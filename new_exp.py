@@ -202,6 +202,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     batch_acc_x = AverageMeter(table_lengths)
     batch_acc_y = AverageMeter(table_lengths)
     batch_acc_z = AverageMeter(table_lengths)
+    batch_prob_z = AverageMeter(table_lengths)
     batch_acc_h = AverageMeter(table_lengths)
     batch_acc_s = AverageMeter(table_lengths)
     batch_acc_zs = AverageMeter(table_lengths)
@@ -253,7 +254,6 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             o_seq = all_seq[:, 1:]
 
             p_seq = model.forward(i_seq)
-            
             losses = loss_f(p_seq.transpose(1, 2), o_seq.to(torch.long))
 
             if args.loss_on == 'all':
@@ -288,7 +288,9 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
                 count_per_h = torch.sum(losses_mask, dim=1)
 
                 correct = (torch.argmax(p_seq, dim=2) == o_seq)
-
+                probilities = torch.nn.functional.softmax(p_seq, dim=-1)
+                probility = probilities.gather(dim=2, index=o_seq.to(torch.long).unsqueeze(-1)).squeeze(-1)  # shape (A, B, 1)
+                
                 correct_xmask = torch.cat([spH_prefix_xmask, xy_seq_xmask, z_suffix_xmask], dim=1).to(torch.float32)[:, 1:]
                 correct_ymask = torch.cat([spH_prefix_ymask, xy_seq_ymask, z_suffix_ymask], dim=1).to(torch.float32)[:, 1:]
                 correct_zmask = torch.cat([spH_prefix_zmask, xy_seq_zmask, z_suffix_zmask], dim=1).to(torch.float32)[:, 1:]
@@ -298,6 +300,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
                 correct_x_per_h = torch.sum(correct*correct_xmask, dim=1)
                 correct_y_per_h = torch.sum(correct*correct_ymask, dim=1)
                 correct_z_per_h = torch.sum(correct*correct_zmask, dim=1)
+                probility_z_per_h = torch.sum(probility*correct_zmask, dim=1)
                 correct_h_per_h = torch.sum(correct*correct_hmask, dim=1)
                 correct_s_per_h = torch.sum(correct*correct_smask, dim=1)
 
@@ -312,6 +315,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_x.update(table_length_batch, correct_x_per_h.data, count_x_per_h)
             batch_acc_y.update(table_length_batch, correct_y_per_h.data, count_y_per_h)
             batch_acc_z.update(table_length_batch, correct_z_per_h.data, count_z_per_h)
+            batch_prob_z.update(table_length_batch, probility_z_per_h.data, count_z_per_h)
             batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
             
@@ -333,7 +337,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
                 batch_acc_zs.update(table_length_batch, correct_zs_per_h.data, count_zs_per_h)
 
             #pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
-            pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} acc_zs={batch_acc_zs.avg[0]:.3f}")
+            pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} prob_z={batch_prob_z.avg[0]:.3f}")
 
         wandb_info={}
         for table_length in table_lengths:
@@ -341,6 +345,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
+            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/prob_z_{table_length}"] = batch_prob_z.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_zs_{table_length}"] = batch_acc_zs.avg[table_length]
@@ -427,7 +432,11 @@ if 1:
             if args.num_x == 5:
                 table_lengths = [4]
                 split_ratio = [0.5, 0.5]  # Ratios for train and test splits
-                train_info = {4: 1820}  # Number of train tables to sample per length
+                if args.num_training_tables != 0:
+                    train_info = {4: args.num_training_tables}  # Number of train tables to sample per length
+                else:
+                    train_info = {4: 1820}  # Number of train tables to sample per length
+                #train_info = {4: 1820}  # Number of train tables to sample per length
                 test__info = {4: 1820}  # Number of test tables to sample per length
         elif args.exp_name == 'HypothesisLengthGeneralization':
             if args.num_x == 6:
@@ -527,7 +536,7 @@ if 1:
         #     name = f'model={args.modelName} h_prefix={1} method={args.method} k={args.k}'
         # if args.method == 'optimal':
         #     name = f'model={args.modelName} h_prefix={1} method={args.method}'
-        name = f'modelName={args.modelName}'
+        name = f'{args.modelName} {args.num_training_tables} {args.random_seed}'
         run = wandb.init(
             # Set the project where this run will be logged
             project= f'{args.HEAD} {args.exp_name} icl={args.icl_sampling} num_x={args.num_x}',
