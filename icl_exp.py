@@ -35,6 +35,7 @@ parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z',
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
 parser.add_argument('--num_x', default=4, type=int)
 parser.add_argument('--num_y', default=2, type=int)
+parser.add_argument('--num_training_hypotheses', default=0, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
 parser.add_argument('--max_table_length', default=4, type=int)
 # table_lengths
@@ -70,7 +71,7 @@ parser.add_argument('--epochs', default=512, type=int, help='number of total epo
 parser.set_defaults(augment=True)
 args = parser.parse_args()
 
-args.n_steps = int(32*512/args.batch_size)
+args.n_steps = int(1024 * 16 / args.batch_size)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 setproctitle.setproctitle(f'{args.exp_name} {args.sampling_disparity} {args.random_seed}')
@@ -387,6 +388,8 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
+             +'_'+ 'num_training_hypotheses'+str(args.num_training_hypotheses) \
+             +'_'+ 'num_training_tables='+str(args.num_training_tables) \
              +'_'+ 'num_x='+str(args.num_x) \
              +'_'+ 'num_y='+str(args.num_y) \
              +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
@@ -462,6 +465,11 @@ if 1:
                 split_ratio = [0.5, 0.5]  # Ratios for train and test splits
                 train_info = {4: 1820}  # Number of train tables to sample per length
                 test__info = {4: 1820}  # Number of test tables to sample per length
+            if args.num_x == 6:
+                table_lengths = [4]
+                split_ratio = [0.75, 0.25]  # Ratios for train and test splits
+                train_info = None  # Number of train tables to sample per length
+                test__info = None  # Number of test tables to sample per length
         elif args.exp_name == 'HypothesisLengthGeneralization':
             if args.num_x == 6:
                 table_lengths = [4, 5, 6, 7, 8]
@@ -520,6 +528,7 @@ if 1:
         args,
         table_lengths=table_lengths,
         split_ratio=split_ratio,
+        num_training_hypotheses=args.num_training_hypotheses,
         train_info=train_info,
         test__info=test__info
     )
