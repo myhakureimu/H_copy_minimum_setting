@@ -17,7 +17,7 @@ def repeat_list_to_length(lst, K):
 
 
 class HypothesisManager:
-    def __init__(self, args, table_lengths, split_ratio, train_info, test__info):
+    def __init__(self, args, table_lengths, split_ratio, num_training_hypotheses, train_info, test__info):
         self.h_prefix_format = args.h_prefix_format
         self.random_seed = args.random_seed
 
@@ -29,6 +29,7 @@ class HypothesisManager:
 
         self.split_based_on = args.split_based_on
         self.split_ratio = split_ratio
+        self.num_training_hypotheses = num_training_hypotheses
         self.train_info = train_info
         self.test__info = test__info
 
@@ -166,6 +167,13 @@ class HypothesisManager:
         train_indices = shuffled_indices[:train_split]
         test__indices = shuffled_indices[train_split:]
 
+        if self.num_training_hypotheses != 0:
+            available_num_training_hypotheses = len(train_indices)
+            if self.num_training_hypotheses < len(train_indices):
+                train_indices = train_indices[:self.num_training_hypotheses]
+                print(f'limited training hypotheses: {self.num_training_hypotheses} / {available_num_training_hypotheses}')
+            else:
+                raise Exception('not enough training hypotheses')
         # Store the indices of hypotheses in training and testing sets
         self.train_hypotheses_indices = train_indices  # Indices into self.all_hypotheses
         self.test__hypotheses_indices = test__indices  # Indices into self.all_hypotheses

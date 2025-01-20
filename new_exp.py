@@ -34,6 +34,7 @@ parser.add_argument('--exp_name', default='TableLengthGeneralization', type=str)
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
 parser.add_argument('--num_x', default=4, type=int)
 parser.add_argument('--num_y', default=2, type=int)
+parser.add_argument('--num_training_hypotheses', default=0, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
 parser.add_argument('--max_table_length', default=8, type=int)
 # table_lengths
@@ -355,6 +356,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
+             +'_'+ 'num_training_hypotheses'+str(args.num_training_hypotheses) \
              +'_'+ 'num_training_tables='+str(args.num_training_tables) \
              +'_'+ 'num_x='+str(args.num_x) \
              +'_'+ 'num_y='+str(args.num_y) \
@@ -496,6 +498,7 @@ if 1:
         args,
         table_lengths=table_lengths,
         split_ratio=split_ratio,
+        num_training_hypotheses=args.num_training_hypotheses,
         train_info=train_info,
         test__info=test__info
     )
