@@ -561,6 +561,7 @@ if 1:
                 'h_prefix_format': args.h_prefix_format,
                 'mix_prob_train1': args.mix_prob_train1,
 
+                'num_training_hypotheses': args.num_training_hypotheses,
                 'num_training_tables': args.num_training_tables,
 
                 'modelName': args.modelName,
@@ -695,19 +696,19 @@ if 1:
         wandb.log(combined_metrics, step=epoch)
 
     load_from = 0
-    for epoch in range(2, args.epochs+1):
-        last_file = folder + f'EP={epoch-1}'
-        curr_file = folder + f'EP={epoch}'
-        last_exists = os.path.exists(last_file)
-        curr_exists = os.path.exists(curr_file)
-        if last_exists and curr_exists:
-            load_from = epoch-1
+    # for epoch in range(2, args.epochs+1):
+    #     last_file = folder + f'EP={epoch-1}'
+    #     curr_file = folder + f'EP={epoch}'
+    #     last_exists = os.path.exists(last_file)
+    #     curr_exists = os.path.exists(curr_file)
+    #     if last_exists and curr_exists:
+    #         load_from = epoch-1
 
-    if load_from != 0:
-        save_path = folder + f'EP={load_from}'
-        checkpoint = torch.load(save_path)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    # if load_from != 0:
+    #     save_path = folder + f'EP={load_from}'
+    #     checkpoint = torch.load(save_path)
+    #     model.load_state_dict(checkpoint['model_state_dict'])
+    #     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     
     for epoch in range(load_from+1, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')

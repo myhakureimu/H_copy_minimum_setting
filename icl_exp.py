@@ -74,7 +74,7 @@ args = parser.parse_args()
 args.n_steps = int(1024 * 16 / args.batch_size)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-setproctitle.setproctitle(f'{args.exp_name} {args.sampling_disparity} {args.random_seed}')
+setproctitle.setproctitle(f'{args.training_content} {args.num_training_hypotheses} {args.random_seed}')
 
 import torch
 import torch.nn as nn
@@ -345,14 +345,14 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_x.update(table_length_batch, correct_x_per_h.data, count_x_per_h)
             batch_acc_y.update(table_length_batch, correct_y_per_h.data, count_y_per_h)
             batch_acc_icl.update(icl_pos         , correct_icl_y  .data, count_icl_y)
+            
             batch_acc_z.update(table_length_batch, correct_z_per_h.data, count_z_per_h)
             batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
             #print(batch_acc_y.avg)
             #print(batch_acc_icl.avg)
-            if phase == 'test_':
+            if (phase == 'test_') and (args.training_content == 'h+xy+z'):
                 p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
-                ##print(p_seq.shape)
                 correct_zs_per_h = []
                 count_zs_per_h = count_z_per_h
                 for iib in range(len(batch['spH_list'])):
@@ -388,8 +388,9 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
 if 1:
     hdata_hypers = 'split_based_on='+str(args.split_based_on) \
-             +'_'+ 'num_training_hypotheses'+str(args.num_training_hypotheses) \
+             +'_'+ 'num_training_hypotheses='+str(args.num_training_hypotheses) \
              +'_'+ 'num_training_tables='+str(args.num_training_tables) \
+             +'_'+ 'training_content='+str(args.training_content) \
              +'_'+ 'num_x='+str(args.num_x) \
              +'_'+ 'num_y='+str(args.num_y) \
              +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
@@ -535,6 +536,7 @@ if 1:
     train_dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
+        n_steps = args.n_steps,
         split = 'train',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
@@ -544,6 +546,7 @@ if 1:
     test__dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
+        n_steps = 1024,
         split = 'test_',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
@@ -553,6 +556,7 @@ if 1:
     opt___dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
+        n_steps = 1024,
         split = 'test_',
         preshuffle = True,
         icl_sampling = 'optimal'
@@ -566,7 +570,7 @@ if 1:
         #     name = f'model={args.modelName} h_prefix={1} method={args.method} k={args.k}'
         # if args.method == 'optimal':
         #     name = f'model={args.modelName} h_prefix={1} method={args.method}'
-        name = f'modelName={args.modelName}'
+        name = f'content={args.training_content} sparsity={args.num_training_hypotheses} seed={args.random_seed}'
         run = wandb.init(
             # Set the project where this run will be logged
             project= f'{args.HEAD} {args.exp_name} icl={args.icl_sampling} num_x={args.num_x}',
@@ -588,7 +592,9 @@ if 1:
                 'h_prefix_format': args.h_prefix_format,
                 'mix_prob_train1': args.mix_prob_train1,
 
-                #'num_training_tables': args.num_training_tables,
+                'training_content': args.training_content,
+                'num_training_hypotheses': args.num_training_hypotheses,
+                'num_training_tables': args.num_training_tables,
 
                 'modelName': args.modelName,
                 'num_heads': args.num_heads,
@@ -615,7 +621,7 @@ if 1:
     print('***** ' + hdata_hypers + ' *****')
     print('***** ' + model_hypers + ' *****')
     print('***** ' + optim_hypers + ' *****')
-    folder = 'saved/'+args.HEAD+args.exp_name+'/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
+    folder = 'saved/'+args.HEAD+'_'+args.exp_name+'/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
     
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -697,29 +703,25 @@ if 1:
     
     
     # print('******** EP = ' +str(0)+ ' / ' +str(args.epochs)+ ' *******')
-    # epoch = 0
-    # split = 'test'
-    # wandb_valid_info = train_model(args, split, hmanager, model, optimizer, epoch=epoch)
-    # if args.wandb:
-    #     wandb_valid_info['global_step'] = epoch
-    #     wandb.log(wandb_valid_info)
+    epoch = 0
+    if epoch%16 == 0:
+        phase = 'test_'
+        wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
+        phase = 'test_'
+        wandb_test2_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
+    else:
+        wandb_test1_info = {}
+        wandb_test2_info = {}
 
-    load_from = 0
-    for epoch in range(2, args.epochs+1):
-        last_file = folder + f'EP={epoch-1}'
-        curr_file = folder + f'EP={epoch}'
-        last_exists = os.path.exists(last_file)
-        curr_exists = os.path.exists(curr_file)
-        if last_exists and curr_exists:
-            load_from = epoch-1
+    # Combine all metrics into one dictionary
+    combined_metrics = {}
+    combined_metrics.update(wandb_test1_info)
+    combined_metrics.update(wandb_test2_info)
+    if args.wandb:
+        combined_metrics['global_step'] = epoch
+        wandb.log(combined_metrics, step=epoch)
 
-    if load_from != 0:
-        save_path = folder + f'EP={load_from}'
-        checkpoint = torch.load(save_path)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    
-    for epoch in range(load_from+1, args.epochs+1):
+    for epoch in range(1, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
         #print(model._read_out.weight.data)
         #print(table_lengths)
@@ -727,7 +729,7 @@ if 1:
             phase = 'train'
             wandb_train_info = train_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
 
-        if epoch%8 == 0:
+        if epoch%16 == 0:
             phase = 'test_'
             wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
             phase = 'test_'

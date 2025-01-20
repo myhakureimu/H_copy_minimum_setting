@@ -1,8 +1,8 @@
 import numpy as np
 import os
-gpuIdxStr = '0'
+gpuIdxStr = '2'
 
-random_seed = 2024+int(gpuIdxStr)
+random_seed = 2023
 
 HEAD = 'SPARSITY'
 
@@ -20,7 +20,7 @@ num_training_tables = 0
 epochs = 512
 
 prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs {epochs} \
-        --HEAD {HEAD} --exp_name {exp_name} --num_x {num_x} --num_y {num_y} \
+        --HEAD {HEAD} --training_content {training_content} --exp_name {exp_name} --num_x {num_x} --num_y {num_y} \
         --split_based_on {split_based_on} --num_training_hypotheses {num_training_hypotheses} \
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
