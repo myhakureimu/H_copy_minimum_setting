@@ -14,7 +14,7 @@ for shift in shift_list:
 
     max_table_length = 4
 
-    num_training_tables = 2**5
+    num_training_tables = 1820
 
     prefix = f'python new_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 \
             --HEAD {HEAD} --exp_name {exp_name} --split_based_on {split_based_on} \

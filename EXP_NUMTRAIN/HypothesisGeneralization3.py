@@ -2,7 +2,7 @@ import numpy as np
 import os
 gpuIdxStr = '0'
 
-shift_list = [2023, 2026]
+shift_list = [2023, 2024, 2025, 2026]
 for shift in shift_list:
     random_seed = shift + int(gpuIdxStr)
 
@@ -21,8 +21,8 @@ for shift in shift_list:
             --num_x {num_x} --num_y {num_y} \
             --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
-    epochs_list = [256, 512]
-    depth_list = [2, 8]
+    epochs_list = [256, 1024]
+    depth_list = [8, 8]
 
     lr_list = [0.0005, 0.00002]
 
@@ -30,7 +30,7 @@ for shift in shift_list:
 
     batch_size_list = [16] #, 32, 64]
 
-    modelName_list = ['mamba', 'dual'] #, 'nano']
+    modelName_list = ['dual', 'dual'] #, 'nano']
 
     loss_on_list = ['all'] #['all', 'y\&z']
 
