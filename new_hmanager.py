@@ -33,8 +33,8 @@ class HypothesisManager:
         self.train_info = train_info
         self.test__info = test__info
 
-        self.max_num_tables = 2**15
-        self.efficiency_threshold = 2**20
+        self.max_num_tables = 2**8
+        self.efficiency_threshold = 2**12
         """
         Initializes the HypothesisManager with the specified parameters.
 

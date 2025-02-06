@@ -23,7 +23,7 @@ parser.add_argument('--random_seed', default=1, type=int, help='the seed used fo
 parser.add_argument('--wandb', default=1, type=int)
 
 parser.add_argument('--HEAD', default='TEST ICL', type=str)
-parser.add_argument('--exp_name', default='TableGeneralization', type=str)
+parser.add_argument('--exp_name', default='IDHypothesis', type=str)
 parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z', 'h+xy', 'xy'])
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
@@ -53,11 +53,12 @@ parser.add_argument('--icl_y_noise', default=0.0, type=float)
 parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)
 
+
 # model setting
-parser.add_argument('--modelName', default='dual', type=str, choices=['dual', 'mamba', 'lstm', 'gru'])
-parser.add_argument('--num_heads', default=2, type=int, help='number of heads for multi-headed attention (default: 8)')
+parser.add_argument('--modelName', default='transformer', type=str, choices=['transformer', 'mamba', 'lstm', 'gru'])
 parser.add_argument('--depth', default=8, type=int, help='depth of the transformer architecture (default: 12)')
 parser.add_argument('--embed_dim', default=128, type=int, help='embedding dimension of the transformer feature extractor (default: 256)')
+parser.add_argument('--num_heads', default=2, type=int, help='number of heads for multi-headed attention (default: 8)')
 # parser.add_argument('--dropout', default=0.0, type=float, help='dropout')
 parser.add_argument('--llm_max_length', default=256, type=int, help='maximum sequence length of the input (default: 11)')
 
@@ -74,7 +75,8 @@ args = parser.parse_args()
 args.n_steps = int(1024 * 16 / args.batch_size)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-setproctitle.setproctitle(f'{args.training_content} {args.num_training_hypotheses} {args.random_seed}')
+if args.HEAD == 'FourGeneralization':
+    setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.random_seed}')
 
 import torch
 import torch.nn as nn
@@ -82,7 +84,7 @@ if args.modelName == 'nano':
     from utils.nano_gpt import GPTConfig, NanoGPT
 if args.modelName == 'pytorch':
     from utils.pytorch_transformer import PytorchTransformer
-if args.modelName == 'dual':
+if args.modelName == 'transformer':
     from utils.models import TransformerModel
 if args.modelName == 'mamba':
     from utils.ssm import KLayerMambaModel
@@ -387,19 +389,27 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
 
 if 1:
-    hdata_hypers = 'split_based_on='+str(args.split_based_on) \
+    hmanager_hypers = 'num_x='+str(args.num_x) \
+             +'_'+ 'num_y='+str(args.num_y) \
              +'_'+ 'num_training_hypotheses='+str(args.num_training_hypotheses) \
              +'_'+ 'num_training_tables='+str(args.num_training_tables) \
-             +'_'+ 'training_content='+str(args.training_content) \
-             +'_'+ 'num_x='+str(args.num_x) \
-             +'_'+ 'num_y='+str(args.num_y) \
+             +'_'+ 'max_table_length='+str(args.max_table_length) \
+             +'_'+ 'split_based_on='+str(args.split_based_on) \
              +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
              +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
              +'_'+ 'random_seed='+str(args.random_seed)
+    dataloader_hypers = 'icl_k='+str(args.icl_k) \
+             +'_'+ 'loss_on='+str(args.loss_on) \
+             +'_'+ 'icl_sampling='+str(args.icl_sampling) \
+             +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
+             +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
+             +'_'+ 'h_prefix_format='+str(args.h_prefix_format) \
+             +'_'+ 'mix_prob_train1='+str(args.mix_prob_train1)
     model_hypers = 'modelName='+str(args.modelName) \
              +'_'+ 'depth='+str(args.depth) \
              +'_'+ 'dim='+str(args.embed_dim) \
-             +'_'+ 'heads='+str(args.num_heads)
+             +'_'+ 'heads='+str(args.num_heads) \
+             +'_'+ 'llm_max_length'+str(args.llm_max_length)
     optim_hypers = 'lr='+str(args.lr) \
              +'_'+ 'wd='+str(args.wd) \
              +'_'+ 'BS='+str(args.batch_size) \
@@ -417,15 +427,33 @@ if 1:
     split_based_on = args.split_based_on  # 'hypothesis' or 'table'
 
     if split_based_on == 'table':
-        if args.exp_name == 'TableLengthGeneralization':
+        if args.exp_name == 'IDHypothesis':
             if args.num_x == 4:
-                table_lengths = [4, 5, 6, 7]
-                split_ratio = [0.7, 0.3]
-                train_info = {4: 1274, 5: 1274, 6: 1274, 7:1274}  # Number of train tables to sample per length
-                test__info = {4: 546, 5: 546, 6: 546, 7: 546}  # Number of train tables to sample per length
+                table_lengths = [4]
+                split_ratio = [0.9, 0.1]  # Ratios for train and test splits
+                train_info = {4: 1638}  # Number of train tables to sample per length
+                test__info = {4: 182}  # Number of test tables to sample per length
+            else:
+                raise Exception('Setting Not Found')
+            # if args.num_x == 5: 
+            #     table_lengths = [4]
+            #     split_ratio = [0.7, 0.3]  # Ratios for train and test splits
+            #     train_info = {4: 1820}  # Number of train tables to sample per length
+            #     test__info = {4: 1820}  # Number of test tables to sample per length
+            # if args.num_x == 6:
+            #     table_lengths = [4]
+            #     split_ratio = [0.7, 0.3]  # Ratios for train and test splits
+            #     train_info = {4: 1820}  # Number of train tables to sample per length
+            #     test__info = {4: 1820}  # Number of test tables to sample per length
+        elif args.exp_name == 'IDHypothesis+Size':
+            # if args.num_x == 4:
+            #     table_lengths = [4, 5, 6, 7]
+            #     split_ratio = [0.7, 0.3]
+            #     train_info = {4: 1638, 5: 1638, 6: 1638, 7:1638}  # Number of train tables to sample per length
+            #     test__info = {4: 182, 5: 182, 6: 182, 7: 182}  # Number of train tables to sample per length
             if args.num_x == 5:
-                table_lengths = [3, 4, 5, 6, 7]
-                split_ratio = [2/3, 1/3]
+                table_lengths = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                split_ratio = [1/3, 2/3]
                 if args.num_training_tables != 0:
                     train_info = {
                         4: args.num_training_tables,
@@ -434,47 +462,33 @@ if 1:
                     }  # Number of train tables to sample per length
                 else:
                     train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
-                test__info = {3:1500, 4: 1500, 5: 1500, 6: 1500, 7: 1500}  # Number of train tables to sample per length
-        elif args.exp_name == 'TableGeneralization':
-            if args.num_x == 2:
-                table_lengths = [2]
-                split_ratio = [1, 0]  # Ratios for train and test splits
-                train_info = {2: 6}  # Number of train tables to sample per length
-                test__info = {2: 0}  # Number of test tables to sample per length
-            if args.num_x == 3:
-                table_lengths = [3]
-                split_ratio = [56/56, 0/56]  # Ratios for train and test splits
-                train_info = {3: 56}  # Number of train tables to sample per length
-                test__info = {3: 0}  # Number of test tables to sample per length
-            if args.num_x == 4:
-                table_lengths = [4]
-                split_ratio = [0.7, 0.3]  # Ratios for train and test splits
-                train_info = {4: 1274}  # Number of train tables to sample per length
-                test__info = {4: 526}  # Number of test tables to sample per length
-            if args.num_x == 5:
-                table_lengths = [4]
-                split_ratio = [0.7, 0.3]  # Ratios for train and test splits
-                train_info = {4: 1820}  # Number of train tables to sample per length
-                test__info = {4: 1820}  # Number of test tables to sample per length
+                test__info = {
+                    2: 300, 3: 300,
+                    4: 300, 5: 300, 6: 300,
+                    7: 300, 8: 300, 9: 300, 10: 300, 11: 300, 12: 300}  # Number of train tables to sample per length
+            else:
+                raise Exception('Setting Not Found')
+        else:
+            raise Exception('Setting Not Found')
     
     if split_based_on == 'hypothesis':
-        if args.exp_name == 'HypothesisGeneralization':
-            if args.num_x == 4:
-                raise Exception('Num of tables would be too small')
+        if args.exp_name == 'OODHypothesis':
             if args.num_x == 5:
                 table_lengths = [4]
                 split_ratio = [0.5, 0.5]  # Ratios for train and test splits
                 train_info = {4: 1820}  # Number of train tables to sample per length
                 test__info = {4: 1820}  # Number of test tables to sample per length
+            else:
+                raise Exception('Setting Not Found')
+            # if args.num_x == 6:
+            #     table_lengths = [4]
+            #     split_ratio = [0.75, 0.25]  # Ratios for train and test splits
+            #     train_info = None  # Number of train tables to sample per length
+            #     test__info = None  # Number of test tables to sample per length
+        elif args.exp_name == 'OODHypothesis+Size':
             if args.num_x == 6:
-                table_lengths = [4]
-                split_ratio = [0.75, 0.25]  # Ratios for train and test splits
-                train_info = None  # Number of train tables to sample per length
-                test__info = None  # Number of test tables to sample per length
-        elif args.exp_name == 'HypothesisLengthGeneralization':
-            if args.num_x == 6:
-                table_lengths = [4, 5, 6, 7, 8]
-                split_ratio = [2/3, 1/3]
+                table_lengths = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                split_ratio = [1/3, 2/3]
                 if args.num_training_tables != 0:
                     train_info = {
                         4: args.num_training_tables,
@@ -482,8 +496,15 @@ if 1:
                         6: args.num_training_tables
                     }  # Number of train tables to sample per length
                 else:
-                    train_info = {5: 3000, 6: 3000, 7: 3000}  # Number of train tables to sample per length
-                test__info = {4:1500, 5: 1500, 6: 1500, 7: 1500, 8: 1500}  # Number of train tables to sample per length
+                    train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
+                test__info = {
+                    2: 300, 3: 300,
+                    4: 300, 5: 300, 6: 300,
+                    7: 300, 8: 300, 9: 300, 10: 300, 11: 300, 12: 300}  # Number of train tables to sample per length
+            else:
+                raise Exception('Setting Not Found')
+        else:
+            raise Exception('Setting Not Found')
     if args.max_table_length < max(table_lengths):
         raise Exception('max_table_length too small')
     # if args.exp_name == 'table_length_basiccheck':
@@ -546,7 +567,7 @@ if 1:
     test__dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
-        n_steps = 1024,
+        n_steps = args.n_steps,
         split = 'test_',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
@@ -556,7 +577,7 @@ if 1:
     opt___dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
-        n_steps = 1024,
+        n_steps = args.n_steps,
         split = 'test_',
         preshuffle = True,
         icl_sampling = 'optimal'
@@ -570,20 +591,31 @@ if 1:
         #     name = f'model={args.modelName} h_prefix={1} method={args.method} k={args.k}'
         # if args.method == 'optimal':
         #     name = f'model={args.modelName} h_prefix={1} method={args.method}'
-        name = f'content={args.training_content} sparsity={args.num_training_hypotheses} seed={args.random_seed}'
+        if args.HEAD == 'FourGeneralization':
+            name = f'model={args.modelName} seed={args,random_seed}'
+        #name = f'content={args.training_content} sparsity={args.num_training_hypotheses} seed={args.random_seed}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'{args.HEAD} {args.exp_name} icl={args.icl_sampling} num_x={args.num_x}',
+            project= f'{args.HEAD} {args.exp_name}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
             # Track hyperparameters and run metadata
             config={
-                'seed': args.random_seed,
+                'HEAD': args.HEAD,
+                'exp_name': args.exp_name,
+                'training_content': args.training_content,
+                
                 'num_x': args.num_x,
                 'num_y': args.num_y,
+                'num_training_hypotheses': args.num_training_hypotheses,
+                'num_training_tables': args.num_training_tables,
                 'max_table_length': args.max_table_length,
-                
+                'split_based_on': args.split_based_on,
+                'sampling_disparity': args.sampling_disparity,
+                'icl_y_noise': args.icl_y_noise,
+                'random_seed': args.random_seed,
+
                 'icl_k': args.icl_k,
                 'loss_on': args.loss_on,
                 'icl_sampling': args.icl_sampling,
@@ -592,42 +624,69 @@ if 1:
                 'h_prefix_format': args.h_prefix_format,
                 'mix_prob_train1': args.mix_prob_train1,
 
-                'training_content': args.training_content,
-                'num_training_hypotheses': args.num_training_hypotheses,
-                'num_training_tables': args.num_training_tables,
-
                 'modelName': args.modelName,
-                'num_heads': args.num_heads,
                 'depth': args.depth,
                 'embed_dim': args.embed_dim,
+                'num_heads': args.num_heads,
                 'llm_max_length': args.llm_max_length,
-
-                'split_based_on': split_based_on,
-                'split_ratio': split_ratio,
-                'table_lengths': table_lengths,
-                'train_info': train_info,
-                'test__info': test__info,
 
                 'lr': args.lr,
                 'wd': args.wd,
                 'batch_size': args.batch_size,
                 'n_steps': args.n_steps,
-                'epochs': args.epochs
+                'epochs': args.epochs,
+
+                'split_ratio': split_ratio,
+                'table_lengths': table_lengths,
+                'train_info': train_info,
+                'test__info': test__info,
             },
         )
         wandb.define_metric("*", step_metric="global_step")
     
+
+    hmanager_hypers = 'num_x='+str(args.num_x) \
+             +'_'+ 'num_y='+str(args.num_y) \
+             +'_'+ 'num_training_hypotheses='+str(args.num_training_hypotheses) \
+             +'_'+ 'num_training_tables='+str(args.num_training_tables) \
+             +'_'+ 'max_table_length='+str(args.max_table_length) \
+             +'_'+ 'split_based_on='+str(args.split_based_on) \
+             +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
+             +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
+             +'_'+ 'random_seed='+str(args.random_seed)
+    dataloader_hypers = 'icl_k='+str(args.icl_k) \
+             +'_'+ 'loss_on='+str(args.loss_on) \
+             +'_'+ 'icl_sampling='+str(args.icl_sampling) \
+             +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
+             +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
+             +'_'+ 'h_prefix_format='+str(args.h_prefix_format) \
+             +'_'+ 'mix_prob_train1='+str(args.mix_prob_train1)
+    model_hypers = 'modelName='+str(args.modelName) \
+             +'_'+ 'depth='+str(args.depth) \
+             +'_'+ 'dim='+str(args.embed_dim) \
+             +'_'+ 'heads='+str(args.num_heads) \
+             +'_'+ 'llm_max_length'+str(args.llm_max_length)
+    optim_hypers = 'lr='+str(args.lr) \
+             +'_'+ 'wd='+str(args.wd) \
+             +'_'+ 'BS='+str(args.batch_size) \
+             +'_'+ 'Step='+str(args.n_steps) \
+             +'_'+ 'EP='+str(args.epochs)
+
+
     # folder
-    print('***** ' + hdata_hypers + ' *****')
+    print('***** ' + hmanager_hypers + ' *****')
+    print('***** ' + dataloader_hypers + ' *****')
     print('***** ' + model_hypers + ' *****')
     print('***** ' + optim_hypers + ' *****')
-    folder = 'saved/'+args.HEAD+'_'+args.exp_name+'/'+hdata_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
+    folder = 'saved' \
+        +'/'+args.HEAD+'_'+args.exp_name+'_'+args.training_content \
+        +'/'+hmanager_hypers+'/'+dataloader_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
     
     if not os.path.exists(folder):
         os.makedirs(folder)
     
     # model
-    if args.modelName == 'dual': #dual
+    if args.modelName == 'transformer': #dual
         model = TransformerModel(
             n_dims = hmanager.num_tokens,
             n_positions = args.llm_max_length, 
