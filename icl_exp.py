@@ -8,6 +8,7 @@ import time
 import random
 import numpy as np
 import wandb
+import pickle 
 
 from new_hmanager import HypothesisManager, DataloaderManager
 from find_valid_zs import find_valid_zs
@@ -60,7 +61,7 @@ parser.add_argument('--depth', default=8, type=int, help='depth of the transform
 parser.add_argument('--embed_dim', default=128, type=int, help='embedding dimension of the transformer feature extractor (default: 256)')
 parser.add_argument('--num_heads', default=2, type=int, help='number of heads for multi-headed attention (default: 8)')
 # parser.add_argument('--dropout', default=0.0, type=float, help='dropout')
-parser.add_argument('--llm_max_length', default=256, type=int, help='maximum sequence length of the input (default: 11)')
+parser.add_argument('--llm_max_length', default=512, type=int, help='maximum sequence length of the input (default: 11)')
 
 #optimization
 parser.add_argument('--lr', default=0.00002, type=float, help='initial model learning rate') #0.0005
@@ -254,7 +255,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             icl_y_mask    = torch.cat([torch.zeros_like(spH_prefix), xy_seq_ymask, torch.zeros_like(z_suffix_zmask)], dim=1).to(torch.float32)
             
             all_seq = torch.cat([spH_prefix, xy_seq, z_suffix], dim=1)
-
+            #print(all_seq.shape)
             if args.loss_on == 'all':
                 #loss = torch.mean(losses)
                 losses_mask = torch.cat([torch.ones_like(spH_prefix),
@@ -475,7 +476,7 @@ if 1:
         if args.exp_name == 'OODHypothesis':
             if args.num_x == 5:
                 table_lengths = [4]
-                split_ratio = [0.5, 0.5]  # Ratios for train and test splits
+                split_ratio = [1/2, 1/2]  # Ratios for train and test splits
                 train_info = {4: 1820}  # Number of train tables to sample per length
                 test__info = {4: 1820}  # Number of test tables to sample per length
             else:
@@ -488,7 +489,7 @@ if 1:
         elif args.exp_name == 'OODHypothesis+Size':
             if args.num_x == 6:
                 table_lengths = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-                split_ratio = [1/3, 2/3]
+                split_ratio = [1/2, 1/2]
                 if args.num_training_tables != 0:
                     train_info = {
                         4: args.num_training_tables,
@@ -592,7 +593,7 @@ if 1:
         # if args.method == 'optimal':
         #     name = f'model={args.modelName} h_prefix={1} method={args.method}'
         if args.HEAD == 'FourGeneralization':
-            name = f'model={args.modelName} seed={args,random_seed}'
+            name = f'model={args.modelName} seed={args.random_seed}'
         #name = f'content={args.training_content} sparsity={args.num_training_hypotheses} seed={args.random_seed}'
         run = wandb.init(
             # Set the project where this run will be logged
@@ -681,10 +682,16 @@ if 1:
     folder = 'saved' \
         +'/'+args.HEAD+'_'+args.exp_name+'_'+args.training_content \
         +'/'+hmanager_hypers+'/'+dataloader_hypers+'/'+model_hypers+'/'+optim_hypers+'/'
-    
+    pkl_folder = 'saved4plot' \
+        +'/'+args.HEAD \
+        +'/'+args.exp_name+'_'+args.training_content \
+        +'/'+ name
+
     if not os.path.exists(folder):
         os.makedirs(folder)
-    
+    if not os.path.exists(pkl_folder):
+        os.makedirs(pkl_folder)
+
     # model
     if args.modelName == 'transformer': #dual
         model = TransformerModel(
@@ -740,21 +747,21 @@ if 1:
     model.cuda()
     #total_params = sum(p.numel() for p in model._read_in.parameters())
     #print(f"Total number of parameters: {total_params}") 
-    total_params = sum(p.numel() for p in model._backbone.parameters())
-    print(f"_backbone: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.wte.parameters())
-    total_params_1 = total_params
-    print(f"_backbone.wte: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.wpe.parameters())
-    total_params_2 = total_params
-    print(f"_backbone.wpe: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.h.parameters())
-    total_params_3 = total_params
-    print(f"_backbone.h: {total_params}")
-    total_params = sum(p.numel() for p in model._backbone.ln_f.parameters())
-    total_params_4 = total_params
-    print(f"_backbone.ln_f: {total_params}")
-    print(total_params_1+total_params_2+total_params_3+total_params_4)
+    # total_params = sum(p.numel() for p in model._backbone.parameters())
+    # print(f"_backbone: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.wte.parameters())
+    # total_params_1 = total_params
+    # print(f"_backbone.wte: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.wpe.parameters())
+    # total_params_2 = total_params
+    # print(f"_backbone.wpe: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.h.parameters())
+    # total_params_3 = total_params
+    # print(f"_backbone.h: {total_params}")
+    # total_params = sum(p.numel() for p in model._backbone.ln_f.parameters())
+    # total_params_4 = total_params
+    # print(f"_backbone.ln_f: {total_params}")
+    # print(total_params_1+total_params_2+total_params_3+total_params_4)
     #total_params = sum(p.numel() for p in model._read_out.parameters())
     #print(f"Total number of parameters: {total_params}")
     #print(model)
@@ -779,6 +786,8 @@ if 1:
     if args.wandb:
         combined_metrics['global_step'] = epoch
         wandb.log(combined_metrics, step=epoch)
+        with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
+            pickle.dump(combined_metrics, f)
 
     for epoch in range(1, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
@@ -787,7 +796,6 @@ if 1:
         if 1:#epoch!=0: #train
             phase = 'train'
             wandb_train_info = train_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
-
         if epoch%16 == 0:
             phase = 'test_'
             wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
@@ -805,7 +813,9 @@ if 1:
         if args.wandb:
             combined_metrics['global_step'] = epoch
             wandb.log(combined_metrics, step=epoch)
-
+            if epoch%16 == 0:
+                with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
+                    pickle.dump(combined_metrics, f)
         save_path = folder + f'EP={epoch}'
         print(save_path)
         torch.save({

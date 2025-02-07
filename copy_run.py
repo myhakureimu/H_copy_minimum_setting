@@ -1,7 +1,7 @@
 import shutil
 
 # Source file
-prefix = 'EXP_FourGeneralization/IDH_Transformer'
+prefix = 'EXP_FourGeneralization/OS_others'
 source_file = f'{prefix}0.py'
 
 # Copy the file to run1.py through run8.py, overwriting if necessary

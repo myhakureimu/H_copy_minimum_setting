@@ -33,8 +33,8 @@ class HypothesisManager:
         self.train_info = train_info
         self.test__info = test__info
 
-        self.max_num_tables = 2**8
-        self.efficiency_threshold = 2**12
+        self.max_num_tables = 2**14
+        self.efficiency_threshold = self.max_num_tables
         """
         Initializes the HypothesisManager with the specified parameters.
 
@@ -179,12 +179,50 @@ class HypothesisManager:
         self.test__hypotheses_indices = test__indices  # Indices into self.all_hypotheses
 
         # Generate possible tables from respective hypotheses
+        print(self.table_lengths)
         for length in self.table_lengths:
-            train_possible_tables = list(itertools.combinations(self.train_hypotheses_indices, length))
+            train_num_total = math.comb(len(self.train_hypotheses_indices), length)
+            if train_num_total <= self.max_num_tables:
+                train_possible_tables = list(itertools.combinations(self.train_hypotheses_indices, length))
+            elif train_num_total <= self.efficiency_threshold:
+                train_possible_tables = []
+                for i, combo in tqdm(enumerate(itertools.combinations(self.train_hypotheses_indices, length))):
+                    if i < self.max_num_tables:
+                        # Initially fill up the reservoir
+                        train_possible_tables.append(combo)
+                    else:
+                        # Once full, randomly replace elements with decreasing probability
+                        r = random.randint(0, i)
+                        if r < self.max_num_tables:
+                            train_possible_tables[r] = combo
+            else:
+                train_possible_tables = sample_random_combinations(len(self.train_hypotheses_indices), length, self.max_num_tables)
+                #print(length, len(possible_tables[0]))
+                train_possible_tables = [[self.train_hypotheses_indices[i] for i in train_possible_table] for train_possible_table in train_possible_tables]
             self.train_tables[length] = train_possible_tables
-            test__possible_tables = list(itertools.combinations(self.test__hypotheses_indices, length))
-            self.test__tables[length] = test__possible_tables
 
+            test__num_total = math.comb(len(self.test__hypotheses_indices), length)
+            if test__num_total <= self.max_num_tables:
+                test__possible_tables = list(itertools.combinations(self.test__hypotheses_indices, length))
+            elif test__num_total <= self.efficiency_threshold:
+                test__possible_tables = []
+                for i, combo in tqdm(enumerate(itertools.combinations(self.test__hypotheses_indices, length))):
+                    if i < self.max_num_tables:
+                        # Initially fill up the reservoir
+                        test__possible_tables.append(combo)
+                    else:
+                        # Once full, randomly replace elements with decreasing probability
+                        r = random.randint(0, i)
+                        if r < self.max_num_tables:
+                            test__possible_tables[r] = combo
+            else:
+                test__possible_tables = sample_random_combinations(len(self.test__hypotheses_indices), length, self.max_num_tables)
+                #print('B', possible_tables[0])
+                test__possible_tables = [[self.test__hypotheses_indices[i] for i in test__possible_table] for test__possible_table in test__possible_tables]
+                #print('A', possible_tables[0])
+            self.test__tables[length] = test__possible_tables
+        
+        
     def _split_based_on_tables(self):
         random.seed(self.random_seed)
         np.random.seed(self.random_seed)
@@ -768,6 +806,8 @@ class HDataset(Dataset):
         self.all_hypotheses = hmanager.all_hypotheses  # Access to all hypotheses
 
         if self.split == 'train':
+            #print('hmanager.train_tables.keys()')
+            #print(hmanager.train_tables.keys())
             self.tables = hmanager.train_tables
             self.hypotheses_indices = hmanager.train_hypotheses_indices
         elif self.split == 'test_':
@@ -806,12 +846,16 @@ class HDataset(Dataset):
         else:
             # Randomly sample a length
             length = random.choice(self.table_lengths)
+            #print(length)
             # Randomly sample a table
+            #print(self.tables[9][:5])
             hA_idx_list = random.choice(self.tables[length])
+            
             H = np.array([self.all_hypotheses[hA_idx] for hA_idx in hA_idx_list])
             I = self.hmanager._calculate_identifying_x(H)
             # Randomly select a hypothesis from the table
             hH_idx = random.randint(0, length - 1)
+            
             h = H[hH_idx]
             i = I[hH_idx]
             return h, i, H, I, hH_idx
