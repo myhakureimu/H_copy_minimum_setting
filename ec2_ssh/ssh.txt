@@ -1,11 +1,42 @@
 VALDI
 ssh -p 10027 -i ICL.pem user@8.17.147.152
 
+4090x4 A: ssh -p 20004 -i ICL.pem user@69.55.141.119
+4090x1 A: ssh -p 20009 -i ICL.pem user@206.168.80.128
 AWS
 ssh -i /home/clannad/Dropbox/0A2024Fall/H_copy_minimum_setting/ec2_ssh/ziqianlin.pem ec2-user@ec2-34-236-148-174.compute-1.amazonaws.com
 
 
-111
+
+sudo apt-get remove --purge '^nvidia-.*' -y
+sudo apt-get autoremove
+sudo apt-get autoclean -y
+
+sudo apt-get update
+sudo apt install nvidia-driver-535 nvidia-utils-535 -y
+
+sudo apt update
+sudo apt install nvidia-cuda-toolkit -y
+
+sudo reboot
+
+mkdir -p ~/miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+rm -rf ~/miniconda3/miniconda.sh
+
+~/miniconda3/bin/conda init bash
+~/miniconda3/bin/conda init zsh
+
+conda update -n base -c defaults conda -y
+conda create -n py310 python=3.10 -y
+conda activate py310
+
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia -y
+
+conda search -c conda-forge cuda-nvcc
+conda install -c conda-forge cuda-nvcc=12.1.105 -y
 
 conda install setproctitle -y
 conda install matplotlib -y
@@ -15,6 +46,8 @@ conda install transformers -y
 conda install htop -y
 pip install mamba-ssm
 
+
+pip install transformers -U
 
 Console sign-in URL
  

@@ -17,7 +17,7 @@ def repeat_list_to_length(lst, K):
 
 
 class HypothesisManager:
-    def __init__(self, args, table_lengths, split_ratio, num_training_hypotheses, train_info, test__info):
+    def __init__(self, args, table_lengths, num_IO_h, train_info, testI_info, testO_info):
         self.h_prefix_format = args.h_prefix_format
         self.random_seed = args.random_seed
 
@@ -28,13 +28,12 @@ class HypothesisManager:
         self.table_lengths = table_lengths
 
         self.split_based_on = args.split_based_on
-        self.split_ratio = split_ratio
-        self.num_training_hypotheses = num_training_hypotheses
+        self.num_IO_h = num_IO_h
         self.train_info = train_info
-        self.test__info = test__info
+        self.testI_info = testI_info
+        self.testO_info = testO_info
 
         self.max_num_tables = 2**14
-        self.efficiency_threshold = self.max_num_tables
         """
         Initializes the HypothesisManager with the specified parameters.
 
@@ -69,29 +68,31 @@ class HypothesisManager:
         print(f'= {self.num_all_h}')
 
         # Initialize the tables dictionaries
-        self.train_tables = {}
-        self.test__tables = {}
 
         # Split the data according to split_based_on
-        if self.split_based_on == 'hypothesis':
-            self._split_based_on_hypotheses()
-        elif self.split_based_on == 'table':
-            self._split_based_on_tables()
-        else:
-            raise ValueError("split_based_on must be 'hypothesis' or 'table'.")
+        # if self.split_based_on == 'hypothesis':
+        #     self._split_based_on_hypotheses()
+        # elif self.split_based_on == 'table':
+        #     self._split_based_on_tables()
+        # else:
+        #     raise ValueError("split_based_on must be 'hypothesis' or 'table'.")
+        self.I_h_indices, self.O_h_indices = {}, {}
+        self._split_hypotheses_to_IO()
+        self.I_tables, self.O_tables = {}, {}
+        self._construct_max_num_tables_and_shuffle()
 
-        print('Num train tables:')
-        for key, value in self.train_tables.items():
+        print('num I_tables:')
+        for key, value in self.I_tables.items():
             print(key, len(value))
-        print('Num test tables:')
-        for key, value in self.test__tables.items():
+        print('num O_tables:')
+        for key, value in self.O_tables.items():
             print(key, len(value))
 
         # Further sample train and test tables according to train_info and test__info
-        if self.train_info is not None:
-            self._sample_train_tables()
-        if self.test__info is not None:
-            self._sample_test__tables()
+        self.train_tables = {}
+        self.testI_tables = {}
+        self.testO_tables = {}
+        self._sample_traintest_tables()
 
     def _init_tokens(self):
         # set token values
@@ -147,142 +148,135 @@ class HypothesisManager:
         if self.num_all_h != (self.num_y**self.num_x):
             raise Exception('wrong num_all_h')
     
-    def _split_based_on_hypotheses(self):
+    def _split_hypotheses_to_IO(self):
         random.seed(self.random_seed)
         np.random.seed(self.random_seed)
 
         # Shuffle hypotheses indices
-        shuffled_indices = list(range(self.num_all_h))
-        random.shuffle(shuffled_indices)
+        shuffled_h_indices = list(range(self.num_all_h))
+        random.shuffle(shuffled_h_indices)
 
         # Split hypotheses based on ratio
-        split_ratio = self.split_ratio
-        if sum(split_ratio) != 1.0:
-            total = sum(split_ratio)
-            split_ratio = [r / total for r in split_ratio]
+        self.num_I_h, self.num_O_h = self.num_IO_h
 
-        total_hypotheses = self.num_all_h
-        train_split = int(split_ratio[0] * total_hypotheses)
+        I_h_indices = shuffled_h_indices[:self.num_I_h]
+        O_h_indices = shuffled_h_indices[-self.num_O_h:]
 
-        train_indices = shuffled_indices[:train_split]
-        test__indices = shuffled_indices[train_split:]
-
-        if self.num_training_hypotheses != 0:
-            available_num_training_hypotheses = len(train_indices)
-            if self.num_training_hypotheses < len(train_indices):
-                train_indices = train_indices[:self.num_training_hypotheses]
-                print(f'limited training hypotheses: {self.num_training_hypotheses} / {available_num_training_hypotheses}')
-            else:
-                raise Exception('not enough training hypotheses')
+        if self.num_I_h + self.num_O_h > len(shuffled_h_indices):
+            raise Exception('not enough hypotheses in hypothesis universe')
         # Store the indices of hypotheses in training and testing sets
-        self.train_hypotheses_indices = train_indices  # Indices into self.all_hypotheses
-        self.test__hypotheses_indices = test__indices  # Indices into self.all_hypotheses
+        self.I_h_indices = I_h_indices  # Indices into self.all_hypotheses
+        self.O_h_indices = O_h_indices  # Indices into self.all_hypotheses
 
-        # Generate possible tables from respective hypotheses
+    def _construct_max_num_tables_and_shuffle(self):
+        # Generate possible tables from respective hypothesesI_h_indices
         print(self.table_lengths)
         for length in self.table_lengths:
-            train_num_total = math.comb(len(self.train_hypotheses_indices), length)
-            if train_num_total <= self.max_num_tables:
-                train_possible_tables = list(itertools.combinations(self.train_hypotheses_indices, length))
-            elif train_num_total <= self.efficiency_threshold:
-                train_possible_tables = []
-                for i, combo in tqdm(enumerate(itertools.combinations(self.train_hypotheses_indices, length))):
-                    if i < self.max_num_tables:
-                        # Initially fill up the reservoir
-                        train_possible_tables.append(combo)
-                    else:
-                        # Once full, randomly replace elements with decreasing probability
-                        r = random.randint(0, i)
-                        if r < self.max_num_tables:
-                            train_possible_tables[r] = combo
+            num_total_I_tables = math.comb(len(self.I_h_indices), length)
+            if num_total_I_tables <= self.max_num_tables:
+                I_tables = list(itertools.combinations(self.I_h_indices, length))
             else:
-                train_possible_tables = sample_random_combinations(len(self.train_hypotheses_indices), length, self.max_num_tables)
-                #print(length, len(possible_tables[0]))
-                train_possible_tables = [[self.train_hypotheses_indices[i] for i in train_possible_table] for train_possible_table in train_possible_tables]
-            self.train_tables[length] = train_possible_tables
+                I_tables = sample_random_combinations(len(self.I_h_indices), length, self.max_num_tables)
+                I_tables = [[self.I_h_indices[i] for i in train_possible_table] for train_possible_table in I_tables]
+            random.shuffle(I_tables)
+            self.I_tables[length] = I_tables
 
-            test__num_total = math.comb(len(self.test__hypotheses_indices), length)
-            if test__num_total <= self.max_num_tables:
-                test__possible_tables = list(itertools.combinations(self.test__hypotheses_indices, length))
-            elif test__num_total <= self.efficiency_threshold:
-                test__possible_tables = []
-                for i, combo in tqdm(enumerate(itertools.combinations(self.test__hypotheses_indices, length))):
-                    if i < self.max_num_tables:
-                        # Initially fill up the reservoir
-                        test__possible_tables.append(combo)
-                    else:
-                        # Once full, randomly replace elements with decreasing probability
-                        r = random.randint(0, i)
-                        if r < self.max_num_tables:
-                            test__possible_tables[r] = combo
+            num_total_O_tables = math.comb(len(self.O_h_indices), length)
+            if num_total_O_tables <= self.max_num_tables:
+                O_tables = list(itertools.combinations(self.O_h_indices, length))
             else:
-                test__possible_tables = sample_random_combinations(len(self.test__hypotheses_indices), length, self.max_num_tables)
-                #print('B', possible_tables[0])
-                test__possible_tables = [[self.test__hypotheses_indices[i] for i in test__possible_table] for test__possible_table in test__possible_tables]
-                #print('A', possible_tables[0])
-            self.test__tables[length] = test__possible_tables
-        
-        
-    def _split_based_on_tables(self):
-        random.seed(self.random_seed)
-        np.random.seed(self.random_seed)
+                O_tables = sample_random_combinations(len(self.O_h_indices), length, self.max_num_tables)
+                O_tables = [[self.O_h_indices[i] for i in test__possible_table] for test__possible_table in O_tables]
+            random.shuffle(O_tables)
+            self.O_tables[length] = O_tables
 
-        for length in self.table_lengths:
-            print(f'***** Table Length = {length} *****')
-            #all_tables = list(itertools.combinations(range(self.num_all_h), length))
-            #print(len(all_tables))
-            num_total = math.comb(self.num_all_h, length)
-            print(num_total, type(num_total))
-            if num_total <= self.max_num_tables:
-                time_A = time.time()
-                possible_tables = list(itertools.combinations(range(self.num_all_h), length))
-                time_B = time.time()
-                print(f'generate time = {time_B-time_A}')
-            elif num_total <= self.efficiency_threshold:
-                time_A = time.time()
-                print('apply reservoir sampling')
-                possible_tables = []
-                for i, combo in tqdm(enumerate(itertools.combinations(range(self.num_all_h), length))):
-                    if i < self.max_num_tables:
-                        # Initially fill up the reservoir
-                        possible_tables.append(combo)
-                    else:
-                        # Once full, randomly replace elements with decreasing probability
-                        r = random.randint(0, i)
-                        if r < self.max_num_tables:
-                            possible_tables[r] = combo
-                print(len(possible_tables))
-                time_B = time.time()
-                print(f'generate time = {time_B-time_A}')
-            else:
-                time_A = time.time()
-                print('apply efficient generation')
-                possible_tables = sample_random_combinations(self.num_all_h, length, self.max_num_tables)
-                print(len(possible_tables))
-                time_B = time.time()
-                print(f'generate time = {time_B-time_A}')
+    # def _split_based_on_tables(self):
+    #     random.seed(self.random_seed)
+    #     np.random.seed(self.random_seed)
+
+    #     for length in self.table_lengths:
+    #         print(f'***** Table Length = {length} *****')
+    #         #all_tables = list(itertools.combinations(range(self.num_all_h), length))
+    #         #print(len(all_tables))
+    #         num_total = math.comb(self.num_all_h, length)
+    #         print(num_total, type(num_total))
+    #         if num_total <= self.max_num_tables:
+    #             time_A = time.time()
+    #             possible_tables = list(itertools.combinations(range(self.num_all_h), length))
+    #             time_B = time.time()
+    #             print(f'generate time = {time_B-time_A}')
+    #         elif num_total <= self.efficiency_threshold:
+    #             time_A = time.time()
+    #             print('apply reservoir sampling')
+    #             possible_tables = []
+    #             for i, combo in tqdm(enumerate(itertools.combinations(range(self.num_all_h), length))):
+    #                 if i < self.max_num_tables:
+    #                     # Initially fill up the reservoir
+    #                     possible_tables.append(combo)
+    #                 else:
+    #                     # Once full, randomly replace elements with decreasing probability
+    #                     r = random.randint(0, i)
+    #                     if r < self.max_num_tables:
+    #                         possible_tables[r] = combo
+    #             print(len(possible_tables))
+    #             time_B = time.time()
+    #             print(f'generate time = {time_B-time_A}')
+    #         else:
+    #             time_A = time.time()
+    #             print('apply efficient generation')
+    #             possible_tables = sample_random_combinations(self.num_all_h, length, self.max_num_tables)
+    #             print(len(possible_tables))
+    #             time_B = time.time()
+    #             print(f'generate time = {time_B-time_A}')
 
 
-            random.shuffle(possible_tables)
-            time_C = time.time()
-            print(f'shuffle time = {time_C-time_B}')
-            split_ratio = self.split_ratio
-            if sum(split_ratio) != 1.0:
-                total = sum(split_ratio)
-                split_ratio = [r / total for r in split_ratio]
+    #         random.shuffle(possible_tables)
+    #         time_C = time.time()
+    #         print(f'shuffle time = {time_C-time_B}')
+    #         split_ratio = self.split_ratio
+    #         if sum(split_ratio) != 1.0:
+    #             total = sum(split_ratio)
+    #             split_ratio = [r / total for r in split_ratio]
 
-            total_tables = len(possible_tables)
-            train_split = int(split_ratio[0] * total_tables)
+    #         total_tables = len(possible_tables)
+    #         train_split = int(split_ratio[0] * total_tables)
 
-            train_tables = possible_tables[:train_split]
-            test__tables = possible_tables[train_split:]
+    #         train_tables = possible_tables[:train_split]
+    #         test__tables = possible_tables[train_split:]
 
-            self.train_tables[length] = train_tables
-            self.test__tables[length] = test__tables
+    #         self.train_tables[length] = train_tables
+    #         self.test__tables[length] = test__tables
 
-        # All hypotheses are available in both splits
-        self.train_hypotheses_indices = range(self.num_all_h)
-        self.test__hypotheses_indices = range(self.num_all_h)
+    #     # All hypotheses are available in both splits
+    #     self.train_h_indices = range(self.num_all_h)
+    #     self.O_h_indices = range(self.num_all_h)
+
+    def _sample_traintest_tables(self):
+        train_info = self.train_info
+        testI_info = self.testI_info
+        testO_info = self.testO_info
+        # check whether train test tables are enough
+        lengths = list( set(train_info.keys()) | set(testI_info.keys()) | set(testO_info.keys()) )
+        for length in lengths:
+            num_requested = train_info.get(length, 0) + testI_info.get(length, 0)
+            available_tables = self.I_tables[length]
+            num_available = len(available_tables)
+            if num_available < num_requested:
+                raise Exception(f"Requested number of I tables ({num_requested}) "
+                                    f"for length {length} exceeds available tables "
+                                    f"({len(num_available)}).")
+            num_requested = testO_info.get(length, 0)
+            available_tables = self.O_tables[length]
+            num_available = len(available_tables)
+            if num_available < num_requested:
+                raise Exception(f"Requested number of O tables ({num_requested}) "
+                                    f"for length {length} exceeds available tables "
+                                    f"({len(num_available)}).")
+        # sampling process
+        for length in lengths:
+            self.train_tables[length] = self.I_tables[length][:train_info.get(length, 0)]
+            self.testI_tables[length] = self.I_tables[length][-testI_info.get(length, 0):]
+            self.testO_tables[length] = self.O_tables[length][:testO_info.get(length, 0)]
 
     def _sample_train_tables(self):
         # Keep only lengths specified in train_info
@@ -809,10 +803,13 @@ class HDataset(Dataset):
             #print('hmanager.train_tables.keys()')
             #print(hmanager.train_tables.keys())
             self.tables = hmanager.train_tables
-            self.hypotheses_indices = hmanager.train_hypotheses_indices
-        elif self.split == 'test_':
-            self.tables = hmanager.test__tables
-            self.hypotheses_indices = hmanager.test__hypotheses_indices
+            self.hypotheses_indices = hmanager.I_h_indices
+        elif self.split == 'testI':
+            self.tables = hmanager.testI_tables
+            self.hypotheses_indices = hmanager.I_h_indices
+        elif self.split == 'testO':
+            self.tables = hmanager.testO_tables
+            self.hypotheses_indices = hmanager.O_h_indices
         else:
             raise ValueError("Invalid split. Must be 'train' or 'test_'.")
 

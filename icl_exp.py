@@ -9,6 +9,7 @@ import random
 import numpy as np
 import wandb
 import pickle 
+import torch.nn.functional as F
 
 from new_hmanager import HypothesisManager, DataloaderManager
 from find_valid_zs import find_valid_zs
@@ -21,10 +22,10 @@ matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
 parser = argparse.ArgumentParser(description='PyTorch In-context Learning Training Code')
 parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
-parser.add_argument('--wandb', default=1, type=int)
+parser.add_argument('--wandb', default=0, type=int)
 
-parser.add_argument('--HEAD', default='TEST ICL', type=str)
-parser.add_argument('--exp_name', default='IDHypothesis', type=str)
+parser.add_argument('--HEAD', default='FourGeneralization', type=str)
+parser.add_argument('--exp_name', default='IOHypothesis', type=str)
 parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z', 'h+xy', 'xy'])
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
@@ -34,11 +35,11 @@ parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z',
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=4, type=int)
+parser.add_argument('--num_x', default=5, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 parser.add_argument('--num_training_hypotheses', default=0, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
-parser.add_argument('--max_table_length', default=4, type=int)
+parser.add_argument('--max_table_length', default=8, type=int)
 # table_lengths
 parser.add_argument('--split_based_on', default='table', type=str)
 # split_ratio
@@ -46,7 +47,7 @@ parser.add_argument('--split_based_on', default='table', type=str)
 # test__info
 
 # H+ICL format for dataloadermanager
-parser.add_argument('--icl_k', default=12, type=int)
+parser.add_argument('--icl_k', default=5, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--sampling_disparity', default=1.0, type=float)
@@ -190,9 +191,9 @@ def l2s(float_list):
 # strings = {}
 # strings['train'] = {}
 # strings['test_'] = {}
-def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
+def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     wandb_info = {}
-    if phase not in ['train', 'test_']:
+    if phase not in ['train', 'testI', 'testO']:
         raise Exception(f'phase = {phase} is not valid')
     icl_sampling = dmanager.icl_sampling
     iid_probability = dmanager.iid_probability
@@ -204,6 +205,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     loss_f = torch.nn.CrossEntropyLoss(reduction = 'none')
     
     batch_loss = AverageMeter(table_lengths)
+    batch_numx = AverageMeter(table_lengths)
     batch_acc_x = AverageMeter(table_lengths)
     batch_acc_y = AverageMeter(table_lengths)
     batch_acc_icl = AverageMeter(list(np.arange(1, args.icl_k+1)))
@@ -213,7 +215,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
     batch_acc_zs = AverageMeter(table_lengths)
     if phase == 'train':
         model.train()
-    if phase == 'test_':
+    if phase in ['testI','testO']:
         model.eval()
 
     if phase in ['test1', 'test2', 'test4', 'test8']:
@@ -340,10 +342,17 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
                 count_s_per_h = torch.sum(correct_smask, dim=1)
                 count_icl_y   = torch.ones_like(correct_icl_y)
                 icl_pos = [pos+1 for pos in range(args.icl_k)]
+
+                xs = torch.stack([a[b == 1] for a, b in zip(xy_seq, xy_seq_xmask)], dim=0)
+                one_hot_result = F.one_hot(torch.tensor([torch.unique(row).size(0) - 1 for row in xs]), num_classes=args.num_x).cuda()
             # Record the loss and elapsed time
             # print(table_length_batch)
             # print(loss_per_h.shape)
             # print(count_per_h)
+            #print(one_hot_result .data)
+            #print(count_per_h.cpu())
+            batch_numx .update(table_length_batch, one_hot_result .data, count_z_per_h)
+
             batch_loss .update(table_length_batch, loss_per_h     .data, count_per_h)
             batch_acc_x.update(table_length_batch, correct_x_per_h.data, count_x_per_h)
             batch_acc_y.update(table_length_batch, correct_y_per_h.data, count_y_per_h)
@@ -354,7 +363,7 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
             batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
             #print(batch_acc_y.avg)
             #print(batch_acc_icl.avg)
-            if (phase == 'test_') and (args.training_content == 'h+xy+z'):
+            if (phase in ['testI', 'testO']) and (args.training_content == 'h+xy+z'):
                 p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
                 correct_zs_per_h = []
                 count_zs_per_h = count_z_per_h
@@ -372,6 +381,8 @@ def train_model(args, phase, table_lengths, dmanager, model, optimizer, epoch):
 
             #pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
             pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} acc_zs={batch_acc_zs.avg[0]:.3f}")
+
+        print(batch_numx.avg[0])
 
         wandb_info={}
         for table_length in table_lengths:
@@ -428,12 +439,26 @@ if 1:
     split_based_on = args.split_based_on  # 'hypothesis' or 'table'
 
     if split_based_on == 'table':
-        if args.exp_name == 'IDHypothesis':
+        if args.exp_name == 'IOHypothesis':
+            if args.num_x == 5:
+                table_lengths = [8]
+                num_IO_h = [16, 16]  # 16 choose 8 = 12870
+                train_info = {8: 4096}  # Number of train tables to sample per length
+                testI_info = {8: 4096}  # Number of test tables to sample per length
+                testO_info = {8: 4096}  # Number of test tables to sample per length
+            else:
+                raise Exception('Setting Not Found')
+        elif args.exp_name == 'IDHypothesis':
             if args.num_x == 4:
                 table_lengths = [4]
                 split_ratio = [0.9, 0.1]  # Ratios for train and test splits
                 train_info = {4: 1638}  # Number of train tables to sample per length
                 test__info = {4: 182}  # Number of test tables to sample per length
+            if args.num_x == 5:
+                table_lengths = [8]
+                split_ratio = [0.9, 0.1]  # Ratios for train and test splits
+                train_info = {8: 1638}  # Number of train tables to sample per length
+                test__info = {8: 182}  # Number of test tables to sample per length
             else:
                 raise Exception('Setting Not Found')
             # if args.num_x == 5: 
@@ -550,10 +575,10 @@ if 1:
     hmanager = HypothesisManager(
         args,
         table_lengths=table_lengths,
-        split_ratio=split_ratio,
-        num_training_hypotheses=args.num_training_hypotheses,
+        num_IO_h=num_IO_h,
         train_info=train_info,
-        test__info=test__info
+        testI_info=testI_info,
+        testO_info=testO_info,
     )
     train_dmanager = DataloaderManager(
         args,
@@ -565,35 +590,53 @@ if 1:
         iid_probability = iid_probability,
         icl_y_noise = args.icl_y_noise
     )
-    test__dmanager = DataloaderManager(
+    testI_dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
         n_steps = args.n_steps,
-        split = 'test_',
+        split = 'testI',
         preshuffle = True,
         icl_sampling = args.icl_sampling,
         iid_probability = iid_probability,
         icl_y_noise = args.icl_y_noise
     )
-    opt___dmanager = DataloaderManager(
+    testO_dmanager = DataloaderManager(
         args,
         hmanager = hmanager,
         n_steps = args.n_steps,
-        split = 'test_',
+        split = 'testO',
+        preshuffle = True,
+        icl_sampling = args.icl_sampling,
+        iid_probability = iid_probability,
+        icl_y_noise = args.icl_y_noise
+    )
+    opt_I_dmanager = DataloaderManager(
+        args,
+        hmanager = hmanager,
+        n_steps = args.n_steps,
+        split = 'testI',
+        preshuffle = True,
+        icl_sampling = 'optimal'
+    )
+    opt_O_dmanager = DataloaderManager(
+        args,
+        hmanager = hmanager,
+        n_steps = args.n_steps,
+        split = 'testO',
         preshuffle = True,
         icl_sampling = 'optimal'
     )
 
 
     # wandb
+    if args.HEAD == 'FourGeneralization':
+        name = f'model={args.modelName} seed={args.random_seed}'
     if args.wandb:
         wandb.login(key='0e030fcc130348fb3127f6140ac82c773fa4b4d9')
         # if args.method in ['normal', 'mix']:
         #     name = f'model={args.modelName} h_prefix={1} method={args.method} k={args.k}'
         # if args.method == 'optimal':
         #     name = f'model={args.modelName} h_prefix={1} method={args.method}'
-        if args.HEAD == 'FourGeneralization':
-            name = f'model={args.modelName} seed={args.random_seed}'
         #name = f'content={args.training_content} sparsity={args.num_training_hypotheses} seed={args.random_seed}'
         run = wandb.init(
             # Set the project where this run will be logged
@@ -771,18 +814,25 @@ if 1:
     # print('******** EP = ' +str(0)+ ' / ' +str(args.epochs)+ ' *******')
     epoch = 0
     if epoch%16 == 0:
-        phase = 'test_'
-        wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
-        phase = 'test_'
-        wandb_test2_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
+        phase = 'testI'
+        wandb_test1_info = traintest_model(args, phase, table_lengths, testI_dmanager, model, optimizer, epoch=epoch)
+        wandb_test2_info = traintest_model(args, phase, table_lengths, opt_I_dmanager, model, optimizer, epoch=epoch)
+        phase = 'testO'
+        wandb_test3_info = traintest_model(args, phase, table_lengths, testO_dmanager, model, optimizer, epoch=epoch)
+        wandb_test4_info = traintest_model(args, phase, table_lengths, opt_O_dmanager, model, optimizer, epoch=epoch)
     else:
         wandb_test1_info = {}
         wandb_test2_info = {}
+        wandb_test3_info = {}
+        wandb_test4_info = {}
 
     # Combine all metrics into one dictionary
     combined_metrics = {}
     combined_metrics.update(wandb_test1_info)
     combined_metrics.update(wandb_test2_info)
+    combined_metrics.update(wandb_test3_info)
+    combined_metrics.update(wandb_test4_info)
+    
     if args.wandb:
         combined_metrics['global_step'] = epoch
         wandb.log(combined_metrics, step=epoch)
@@ -795,21 +845,27 @@ if 1:
         #print(table_lengths)
         if 1:#epoch!=0: #train
             phase = 'train'
-            wandb_train_info = train_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
+            wandb_train_info = traintest_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
         if epoch%16 == 0:
-            phase = 'test_'
-            wandb_test1_info = train_model(args, phase, table_lengths, test__dmanager, model, optimizer, epoch=epoch)
-            phase = 'test_'
-            wandb_test2_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
+            phase = 'testI'
+            wandb_test1_info = traintest_model(args, phase, table_lengths, testI_dmanager, model, optimizer, epoch=epoch)
+            wandb_test2_info = traintest_model(args, phase, table_lengths, opt_I_dmanager, model, optimizer, epoch=epoch)
+            phase = 'testO'
+            wandb_test3_info = traintest_model(args, phase, table_lengths, testO_dmanager, model, optimizer, epoch=epoch)
+            wandb_test4_info = traintest_model(args, phase, table_lengths, opt_O_dmanager, model, optimizer, epoch=epoch)
         else:
             wandb_test1_info = {}
             wandb_test2_info = {}
+            wandb_test3_info = {}
+            wandb_test4_info = {}
         
         # Combine all metrics into one dictionary
         combined_metrics = {}
         combined_metrics.update(wandb_train_info)
         combined_metrics.update(wandb_test1_info)
         combined_metrics.update(wandb_test2_info)
+        combined_metrics.update(wandb_test3_info)
+        combined_metrics.update(wandb_test4_info)
         if args.wandb:
             combined_metrics['global_step'] = epoch
             wandb.log(combined_metrics, step=epoch)
@@ -834,7 +890,7 @@ if 1:
 
         if 0:
             phase = 'test_'
-            wandb_valid_info = train_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
+            wandb_valid_info = traintest_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
             if args.wandb:
                 wandb_valid_info['global_step'] = epoch
                 wandb.log(wandb_valid_info, step=epoch, commit=False)
