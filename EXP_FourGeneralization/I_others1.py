@@ -11,13 +11,13 @@ training_content = 'h+xy+z'
 exp_name = 'IDHypothesis'
 
 split_based_on, num_training_hypotheses = 'table', 0
-icl_k, num_x, num_y = 4, 4, 2
+icl_k, num_x, num_y = 5, 5, 2
 
-max_table_length = 4
+max_table_length = 8
 
 num_training_tables = 0
 
-epochs = 768
+epochs = 1024
 
 prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs {epochs} \
         --HEAD {HEAD} --training_content {training_content} --exp_name {exp_name} \

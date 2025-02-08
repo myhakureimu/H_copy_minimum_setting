@@ -680,10 +680,12 @@ if 1:
                 'n_steps': args.n_steps,
                 'epochs': args.epochs,
 
-                'split_ratio': split_ratio,
+                #'split_ratio': split_ratio,
                 'table_lengths': table_lengths,
+                'num_IO_h': num_IO_h,
                 'train_info': train_info,
-                'test__info': test__info,
+                'testI_info': testI_info,
+                'testO_info': testO_info,
             },
         )
         wandb.define_metric("*", step_metric="global_step")
