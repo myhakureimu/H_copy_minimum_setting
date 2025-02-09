@@ -209,7 +209,7 @@ def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoc
     loss_f = torch.nn.CrossEntropyLoss(reduction = 'none')
     
     batch_loss = AverageMeter(table_lengths)
-    batch_numx = AverageMeter(table_lengths)
+    batch_numx = AverageMeter(table_lengths) #check how many xs in the query
     batch_acc_x = AverageMeter(table_lengths)
     batch_acc_y = AverageMeter(table_lengths)
     batch_acc_icl = AverageMeter(list(np.arange(1, args.icl_k+1)))
@@ -347,15 +347,15 @@ def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoc
                 count_icl_y   = torch.ones_like(correct_icl_y)
                 icl_pos = [pos+1 for pos in range(args.icl_k)]
 
-                xs = torch.stack([a[b == 1] for a, b in zip(xy_seq, xy_seq_xmask)], dim=0)
-                one_hot_result = F.one_hot(torch.tensor([torch.unique(row).size(0) - 1 for row in xs]), num_classes=args.num_x).cuda()
+                ###xs = torch.stack([a[b == 1] for a, b in zip(xy_seq, xy_seq_xmask)], dim=0)
+                ###one_hot_result = F.one_hot(torch.tensor([torch.unique(row).size(0) - 1 for row in xs]), num_classes=args.num_x).cuda()
             # Record the loss and elapsed time
             # print(table_length_batch)
             # print(loss_per_h.shape)
             # print(count_per_h)
             #print(one_hot_result .data)
             #print(count_per_h.cpu())
-            batch_numx .update(table_length_batch, one_hot_result .data, count_z_per_h)
+            ###batch_numx .update(table_length_batch, one_hot_result .data, count_z_per_h)
 
             batch_loss .update(table_length_batch, loss_per_h     .data, count_per_h)
             batch_acc_x.update(table_length_batch, correct_x_per_h.data, count_x_per_h)
@@ -386,7 +386,7 @@ def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoc
             #pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
             pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} acc_zs={batch_acc_zs.avg[0]:.3f}")
 
-        print(batch_numx.avg[0])
+        ###print(batch_numx.avg[0])
 
         wandb_info={}
         for table_length in table_lengths:

@@ -2,7 +2,7 @@ import numpy as np
 import os
 gpuIdxStr = '1'
 
-random_seed = 2024
+random_seed = 2026
 
 HEAD = 'NUMTRAIN'
 
