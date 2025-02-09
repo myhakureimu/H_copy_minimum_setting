@@ -13,6 +13,7 @@ import torch.nn.functional as F
 
 from new_hmanager import HypothesisManager, DataloaderManager
 from find_valid_zs import find_valid_zs
+from get_config import get_config
 
 matplotlib.rc('text', usetex=True)
 matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
@@ -21,7 +22,6 @@ matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
 # environment setting
 parser = argparse.ArgumentParser(description='PyTorch In-context Learning Training Code')
 parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
-parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
 parser.add_argument('--wandb', default=0, type=int)
 
 parser.add_argument('--HEAD', default='FourGeneralization', type=str)
@@ -41,7 +41,8 @@ parser.add_argument('--num_training_hypotheses', default=0, type=int)
 parser.add_argument('--num_training_tables', default=0, type=int)
 parser.add_argument('--max_table_length', default=8, type=int)
 # table_lengths
-parser.add_argument('--split_based_on', default='table', type=str)
+#parser.add_argument('--split_based_on', default='table', type=str)
+parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
 # split_ratio
 # train_info
 # test__info
@@ -70,6 +71,7 @@ parser.add_argument('--wd', default=0.0005, type=float, help='weight decay hyper
 parser.add_argument('--batch_size', default=16, type=int, help='mini-batch size (default: 64)') #32
 parser.add_argument('--n_steps', default=512, type=int, help='total number of training steps we want to run')
 parser.add_argument('--epochs', default=512, type=int, help='number of total epochs to run')
+parser.add_argument('--epochs2test', default=32, type=int, help='number of epochs to test')
 
 parser.set_defaults(augment=True)
 args = parser.parse_args()
@@ -79,6 +81,8 @@ args.n_steps = int(1024 * 16 / args.batch_size)
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 if args.HEAD == 'FourGeneralization':
     setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.random_seed}')
+if args.HEAD == 'NUMTRAIN':
+    setproctitle.setproctitle(f'{args.exp_name} {args.num_training_tables} {args.random_seed}')
 
 import torch
 import torch.nn as nn
@@ -401,177 +405,17 @@ def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoc
 
 
 if 1:
-    hmanager_hypers = 'num_x='+str(args.num_x) \
-             +'_'+ 'num_y='+str(args.num_y) \
-             +'_'+ 'num_training_hypotheses='+str(args.num_training_hypotheses) \
-             +'_'+ 'num_training_tables='+str(args.num_training_tables) \
-             +'_'+ 'max_table_length='+str(args.max_table_length) \
-             +'_'+ 'split_based_on='+str(args.split_based_on) \
-             +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
-             +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
-             +'_'+ 'random_seed='+str(args.random_seed)
-    dataloader_hypers = 'icl_k='+str(args.icl_k) \
-             +'_'+ 'loss_on='+str(args.loss_on) \
-             +'_'+ 'icl_sampling='+str(args.icl_sampling) \
-             +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
-             +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
-             +'_'+ 'h_prefix_format='+str(args.h_prefix_format) \
-             +'_'+ 'mix_prob_train1='+str(args.mix_prob_train1)
-    model_hypers = 'modelName='+str(args.modelName) \
-             +'_'+ 'depth='+str(args.depth) \
-             +'_'+ 'dim='+str(args.embed_dim) \
-             +'_'+ 'heads='+str(args.num_heads) \
-             +'_'+ 'llm_max_length'+str(args.llm_max_length)
-    optim_hypers = 'lr='+str(args.lr) \
-             +'_'+ 'wd='+str(args.wd) \
-             +'_'+ 'BS='+str(args.batch_size) \
-             +'_'+ 'Step='+str(args.n_steps) \
-             +'_'+ 'EP='+str(args.epochs)
-
-    # Initialize the data loader
-    print(f'num_x={args.num_x}, split_based_on={args.split_based_on}, icl_k={args.icl_k}, n_steps={args.n_steps}')
-    #hmanager = HypothesisManager(mode=args.mode, n=args.n, random_seed=args.random_seed, k=args.k, split_ratio=[0.6,0.3,0.1])
+    # num_x = args.num_x  # Number of elements in the mode
+    # random_seed = args.random_seed
+    # icl_k = args.icl_k  # Number of x-y pairs per sequence
     
+    table_lengths, num_IO_h, train_info, testI_info, testO_info = get_config(args)
 
-    num_x = args.num_x  # Number of elements in the mode
-    random_seed = args.random_seed
-    icl_k = args.icl_k  # Number of x-y pairs per sequence
-    split_based_on = args.split_based_on  # 'hypothesis' or 'table'
-
-    if split_based_on == 'table':
-        if args.exp_name == 'IOHypothesis':
-            if args.num_x == 5:
-                table_lengths = [8]
-                num_IO_h = [16, 16]  # 16 choose 8 = 12870
-                train_info = {8: 4096}  # Number of train tables to sample per length
-                testI_info = {8: 4096}  # Number of test tables to sample per length
-                testO_info = {8: 4096}  # Number of test tables to sample per length
-            else:
-                raise Exception('Setting Not Found')
-        elif args.exp_name == 'IDHypothesis':
-            if args.num_x == 4:
-                table_lengths = [4]
-                split_ratio = [0.9, 0.1]  # Ratios for train and test splits
-                train_info = {4: 1638}  # Number of train tables to sample per length
-                test__info = {4: 182}  # Number of test tables to sample per length
-            if args.num_x == 5:
-                table_lengths = [8]
-                split_ratio = [0.9, 0.1]  # Ratios for train and test splits
-                train_info = {8: 1638}  # Number of train tables to sample per length
-                test__info = {8: 182}  # Number of test tables to sample per length
-            else:
-                raise Exception('Setting Not Found')
-            # if args.num_x == 5: 
-            #     table_lengths = [4]
-            #     split_ratio = [0.7, 0.3]  # Ratios for train and test splits
-            #     train_info = {4: 1820}  # Number of train tables to sample per length
-            #     test__info = {4: 1820}  # Number of test tables to sample per length
-            # if args.num_x == 6:
-            #     table_lengths = [4]
-            #     split_ratio = [0.7, 0.3]  # Ratios for train and test splits
-            #     train_info = {4: 1820}  # Number of train tables to sample per length
-            #     test__info = {4: 1820}  # Number of test tables to sample per length
-        elif args.exp_name == 'IDHypothesis+Size':
-            # if args.num_x == 4:
-            #     table_lengths = [4, 5, 6, 7]
-            #     split_ratio = [0.7, 0.3]
-            #     train_info = {4: 1638, 5: 1638, 6: 1638, 7:1638}  # Number of train tables to sample per length
-            #     test__info = {4: 182, 5: 182, 6: 182, 7: 182}  # Number of train tables to sample per length
-            if args.num_x == 5:
-                table_lengths = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-                split_ratio = [1/3, 2/3]
-                if args.num_training_tables != 0:
-                    train_info = {
-                        4: args.num_training_tables,
-                        5: args.num_training_tables,
-                        6: args.num_training_tables
-                    }  # Number of train tables to sample per length
-                else:
-                    train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
-                test__info = {
-                    2: 300, 3: 300,
-                    4: 300, 5: 300, 6: 300,
-                    7: 300, 8: 300, 9: 300, 10: 300, 11: 300, 12: 300}  # Number of train tables to sample per length
-            else:
-                raise Exception('Setting Not Found')
-        else:
-            raise Exception('Setting Not Found')
-    
-    if split_based_on == 'hypothesis':
-        if args.exp_name == 'OODHypothesis':
-            if args.num_x == 5:
-                table_lengths = [4]
-                split_ratio = [1/2, 1/2]  # Ratios for train and test splits
-                train_info = {4: 1820}  # Number of train tables to sample per length
-                test__info = {4: 1820}  # Number of test tables to sample per length
-            else:
-                raise Exception('Setting Not Found')
-            # if args.num_x == 6:
-            #     table_lengths = [4]
-            #     split_ratio = [0.75, 0.25]  # Ratios for train and test splits
-            #     train_info = None  # Number of train tables to sample per length
-            #     test__info = None  # Number of test tables to sample per length
-        elif args.exp_name == 'OODHypothesis+Size':
-            if args.num_x == 6:
-                table_lengths = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-                split_ratio = [1/2, 1/2]
-                if args.num_training_tables != 0:
-                    train_info = {
-                        4: args.num_training_tables,
-                        5: args.num_training_tables,
-                        6: args.num_training_tables
-                    }  # Number of train tables to sample per length
-                else:
-                    train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
-                test__info = {
-                    2: 300, 3: 300,
-                    4: 300, 5: 300, 6: 300,
-                    7: 300, 8: 300, 9: 300, 10: 300, 11: 300, 12: 300}  # Number of train tables to sample per length
-            else:
-                raise Exception('Setting Not Found')
-        else:
-            raise Exception('Setting Not Found')
     if args.max_table_length < max(table_lengths):
         raise Exception('max_table_length too small')
-    # if args.exp_name == 'table_length_basiccheck':
-    #     if split_based_on != 'table':
-    #         raise Exception('Wrong setting')
-    #     if n == 4:
-    #         table_lengths = [4, 5, 6, 7]
-    #         split_ratio = [0.7, 0.3]
-    #         train_info = {4: 1274, 5: 1274, 6: 1274, 7:1274}  # Number of train tables to sample per length
-    #         test__info = {4: 546, 5: 546, 6: 546, 7: 546}  # Number of train tables to sample per length
-    #     if n == 5:
-    #         table_lengths = [3, 4, 5, 6, 7]
-    #         split_ratio = [2/3, 1/3]
-    #         train_info = {3: 3000, 4: 3000, 5: 3000, 6: 3000, 7: 3000}  # Number of train tables to sample per length
-    #         test__info = {3:1500, 4: 1500, 5: 1500, 6: 1500, 7: 1500}  # Number of train tables to sample per length
-
-    # if args.exp_name == 'table_length_generalization':
-    #     if split_based_on != 'table':
-    #         raise Exception('Wrong setting')
-    #     if n == 4:
-    #         table_lengths = [4, 5, 6, 7]
-    #         split_ratio = [0.7, 0.3]
-    #         train_info = {5: 1274, 6: 1274}  # Number of train tables to sample per length
-    #         test__info = {4: 546, 5: 546, 6: 546, 7: 546}  # Number of train tables to sample per length
-    #     if n == 5:
-    #         table_lengths = [3, 4, 5, 6, 7]
-    #         split_ratio = [2/3, 1/3]
-    #         if args.num_training_tables != 0:
-    #             train_info = {
-    #                 4: args.num_training_tables,
-    #                 5: args.num_training_tables,
-    #                 6: args.num_training_tables
-    #             }  # Number of train tables to sample per length
-    #         else:
-    #             train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
-    #         test__info = {3:1500, 4: 1500, 5: 1500, 6: 1500, 7: 1500}  # Number of train tables to sample per length
 
     # Initialize the HypothesisManager
-
     iid_probability = generate_normalized_vector(args.num_x, args.sampling_disparity)
-
     hmanager = HypothesisManager(
         args,
         table_lengths=table_lengths,
@@ -631,6 +475,8 @@ if 1:
     # wandb
     if args.HEAD == 'FourGeneralization':
         name = f'model={args.modelName} seed={args.random_seed}'
+    if args.HEAD == 'NUMTRAIN':
+        name = f'num={args.num_training_tables} seed={args.random_seed}'
     if args.wandb:
         wandb.login(key='0e030fcc130348fb3127f6140ac82c773fa4b4d9')
         # if args.method in ['normal', 'mix']:
@@ -655,9 +501,7 @@ if 1:
                 'num_training_hypotheses': args.num_training_hypotheses,
                 'num_training_tables': args.num_training_tables,
                 'max_table_length': args.max_table_length,
-                'split_based_on': args.split_based_on,
-                'sampling_disparity': args.sampling_disparity,
-                'icl_y_noise': args.icl_y_noise,
+                #'split_based_on': args.split_based_on,
                 'random_seed': args.random_seed,
 
                 'icl_k': args.icl_k,
@@ -679,7 +523,7 @@ if 1:
                 'batch_size': args.batch_size,
                 'n_steps': args.n_steps,
                 'epochs': args.epochs,
-
+                'epochs2test': args.epochs2test,
                 #'split_ratio': split_ratio,
                 'table_lengths': table_lengths,
                 'num_IO_h': num_IO_h,
@@ -696,9 +540,6 @@ if 1:
              +'_'+ 'num_training_hypotheses='+str(args.num_training_hypotheses) \
              +'_'+ 'num_training_tables='+str(args.num_training_tables) \
              +'_'+ 'max_table_length='+str(args.max_table_length) \
-             +'_'+ 'split_based_on='+str(args.split_based_on) \
-             +'_'+ 'sampling_disparity='+str(args.sampling_disparity) \
-             +'_'+ 'icl_y_noise='+str(args.icl_y_noise) \
              +'_'+ 'random_seed='+str(args.random_seed)
     dataloader_hypers = 'icl_k='+str(args.icl_k) \
              +'_'+ 'loss_on='+str(args.loss_on) \
@@ -815,7 +656,7 @@ if 1:
     
     # print('******** EP = ' +str(0)+ ' / ' +str(args.epochs)+ ' *******')
     epoch = 0
-    if epoch%16 == 0:
+    if epoch%args.epochs2test == 0:
         phase = 'testI'
         wandb_test1_info = traintest_model(args, phase, table_lengths, testI_dmanager, model, optimizer, epoch=epoch)
         wandb_test2_info = traintest_model(args, phase, table_lengths, opt_I_dmanager, model, optimizer, epoch=epoch)
@@ -848,7 +689,7 @@ if 1:
         if 1:#epoch!=0: #train
             phase = 'train'
             wandb_train_info = traintest_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
-        if epoch%16 == 0:
+        if epoch%args.epochs2test == 0:
             phase = 'testI'
             wandb_test1_info = traintest_model(args, phase, table_lengths, testI_dmanager, model, optimizer, epoch=epoch)
             wandb_test2_info = traintest_model(args, phase, table_lengths, opt_I_dmanager, model, optimizer, epoch=epoch)
@@ -871,7 +712,7 @@ if 1:
         if args.wandb:
             combined_metrics['global_step'] = epoch
             wandb.log(combined_metrics, step=epoch)
-            if epoch%16 == 0:
+            if epoch%args.epochs2test == 0:
                 with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
                     pickle.dump(combined_metrics, f)
         save_path = folder + f'EP={epoch}'

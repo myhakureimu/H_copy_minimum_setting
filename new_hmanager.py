@@ -27,7 +27,7 @@ class HypothesisManager:
         self.max_table_length = args.max_table_length
         self.table_lengths = table_lengths
 
-        self.split_based_on = args.split_based_on
+        #self.split_based_on = args.split_based_on
         self.num_IO_h = num_IO_h
         self.train_info = train_info
         self.testI_info = testI_info
@@ -264,17 +264,18 @@ class HypothesisManager:
             if num_available < num_requested:
                 raise Exception(f"Requested number of I tables ({num_requested}) "
                                     f"for length {length} exceeds available tables "
-                                    f"({len(num_available)}).")
+                                    f"({num_available}).")
             num_requested = testO_info.get(length, 0)
             available_tables = self.O_tables[length]
             num_available = len(available_tables)
             if num_available < num_requested:
                 raise Exception(f"Requested number of O tables ({num_requested}) "
                                     f"for length {length} exceeds available tables "
-                                    f"({len(num_available)}).")
+                                    f"(num_available).")
         # sampling process
         for length in lengths:
-            self.train_tables[length] = self.I_tables[length][:train_info.get(length, 0)]
+            if train_info.get(length, 0) != 0:
+                self.train_tables[length] = self.I_tables[length][:train_info.get(length, 0)]
             self.testI_tables[length] = self.I_tables[length][-testI_info.get(length, 0):]
             self.testO_tables[length] = self.O_tables[length][:testO_info.get(length, 0)]
 
@@ -298,7 +299,7 @@ class HypothesisManager:
                                     f"({len(available_tables)}).")
             else:
                 raise Exception(f"No training tables of length {length} to sample from.")
-
+        
     def _sample_test__tables(self):
         # Keep only lengths specified in test__info
         lengths_to_keep = set(self.test__info.keys())
@@ -846,6 +847,9 @@ class HDataset(Dataset):
             #print(length)
             # Randomly sample a table
             #print(self.tables[9][:5])
+            #print(type(self.tables))
+            #print(self.tables.keys())
+            #print(len(self.tables[length]))
             hA_idx_list = random.choice(self.tables[length])
             
             H = np.array([self.all_hypotheses[hA_idx] for hA_idx in hA_idx_list])
