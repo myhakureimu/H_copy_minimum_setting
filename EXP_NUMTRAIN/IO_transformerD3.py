@@ -1,6 +1,6 @@
 import numpy as np
 import os
-gpuIdxStr = '2'
+gpuIdxStr = '1'
 
 random_seed = 2026
 
@@ -10,9 +10,9 @@ training_content = 'h+xy+z'
 
 exp_name = 'IOHypothesis'
 
-icl_k, num_x, num_y = 5, 5, 2
+icl_k, num_x, num_y = 6, 6, 2
 
-num_training_hypotheses, num_training_tables = 0, 2**10
+num_training_hypotheses, num_training_tables = 0, 2**6
 
 max_table_length = 8
 
@@ -26,7 +26,7 @@ prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
 
 depth_list = [2, 2, 2]#, 8]
 lr_list = [0.0005, 0.001, 0.001]#, 0.00002]
-modelName_list = ['mamba', 'lstm', 'gru']#, 'dual'] #, 'nano']
+modelName_list = ['mamba', 'lstm', 'gru']#, 'dual'] #, 'nano']s
 
 wd_list = [0.0005]
 

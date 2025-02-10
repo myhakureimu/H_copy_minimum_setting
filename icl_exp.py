@@ -35,10 +35,10 @@ parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z',
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=5, type=int)
+parser.add_argument('--num_x', default=6, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 parser.add_argument('--num_training_hypotheses', default=0, type=int)
-parser.add_argument('--num_training_tables', default=0, type=int)
+parser.add_argument('--num_training_tables', default=2**14, type=int)
 parser.add_argument('--max_table_length', default=8, type=int)
 # table_lengths
 #parser.add_argument('--split_based_on', default='table', type=str)
@@ -48,7 +48,7 @@ parser.add_argument('--random_seed', default=1, type=int, help='the seed used fo
 # test__info
 
 # H+ICL format for dataloadermanager
-parser.add_argument('--icl_k', default=5, type=int)
+parser.add_argument('--icl_k', default=6, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--sampling_disparity', default=1.0, type=float)
@@ -332,71 +332,64 @@ def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoc
 
                 correct = (torch.argmax(p_seq, dim=2) == o_seq)
 
-                correct_x_per_h = torch.sum(correct*correct_xmask, dim=1)
-                correct_y_per_h = torch.sum(correct*correct_ymask, dim=1)
+                ##correct_x_per_h = torch.sum(correct*correct_xmask, dim=1)
+                ##correct_y_per_h = torch.sum(correct*correct_ymask, dim=1)
                 correct_z_per_h = torch.sum(correct*correct_zmask, dim=1)
-                correct_h_per_h = torch.sum(correct*correct_hmask, dim=1)
-                correct_s_per_h = torch.sum(correct*correct_smask, dim=1)
+                ##correct_h_per_h = torch.sum(correct*correct_hmask, dim=1)
+                ##correct_s_per_h = torch.sum(correct*correct_smask, dim=1)
                 correct_icl_y   = torch.mean(1.0*(correct[icl_y_mask==1]).reshape([args.batch_size,-1]), dim=0)
-                #print(correct_icl_y)
-                count_x_per_h = torch.sum(correct_xmask, dim=1)
-                count_y_per_h = torch.sum(correct_ymask, dim=1)
+                
+                ##count_x_per_h = torch.sum(correct_xmask, dim=1)
+                ##count_y_per_h = torch.sum(correct_ymask, dim=1)
                 count_z_per_h = torch.sum(correct_zmask, dim=1)
-                count_h_per_h = torch.sum(correct_hmask, dim=1)
-                count_s_per_h = torch.sum(correct_smask, dim=1)
+                ##count_h_per_h = torch.sum(correct_hmask, dim=1)
+                ##count_s_per_h = torch.sum(correct_smask, dim=1)
                 count_icl_y   = torch.ones_like(correct_icl_y)
                 icl_pos = [pos+1 for pos in range(args.icl_k)]
 
                 ###xs = torch.stack([a[b == 1] for a, b in zip(xy_seq, xy_seq_xmask)], dim=0)
                 ###one_hot_result = F.one_hot(torch.tensor([torch.unique(row).size(0) - 1 for row in xs]), num_classes=args.num_x).cuda()
-            # Record the loss and elapsed time
-            # print(table_length_batch)
-            # print(loss_per_h.shape)
-            # print(count_per_h)
-            #print(one_hot_result .data)
-            #print(count_per_h.cpu())
+
             ###batch_numx .update(table_length_batch, one_hot_result .data, count_z_per_h)
 
             batch_loss .update(table_length_batch, loss_per_h     .data, count_per_h)
-            batch_acc_x.update(table_length_batch, correct_x_per_h.data, count_x_per_h)
-            batch_acc_y.update(table_length_batch, correct_y_per_h.data, count_y_per_h)
+            ##batch_acc_x.update(table_length_batch, correct_x_per_h.data, count_x_per_h)
+            ##batch_acc_y.update(table_length_batch, correct_y_per_h.data, count_y_per_h)
             batch_acc_icl.update(icl_pos         , correct_icl_y  .data, count_icl_y)
             
             batch_acc_z.update(table_length_batch, correct_z_per_h.data, count_z_per_h)
-            batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
-            batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
-            #print(batch_acc_y.avg)
-            #print(batch_acc_icl.avg)
-            if (phase in ['testI', 'testO']) and (args.training_content == 'h+xy+z'):
-                p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
-                correct_zs_per_h = []
-                count_zs_per_h = count_z_per_h
-                for iib in range(len(batch['spH_list'])):
-                    valid_zs = find_valid_zs(batch['spH_prefix_list_info']['spH_prefix_list'][iib],
-                                            batch['xy_seq_list_info'    ]['xy_seq_list'    ][iib],
-                                            pad_token=tokens['pad'], predict_token=tokens['>'], comma_token=tokens[','])
-                    if p_seq[iib] in valid_zs:
-                        correct_zs_per_h.append(1)
-                    else:
-                        correct_zs_per_h.append(0)
-                correct_zs_per_h = torch.tensor(correct_zs_per_h)
+            ##batch_acc_h.update(table_length_batch, correct_h_per_h.data, count_h_per_h)
+            ##batch_acc_s.update(table_length_batch, correct_s_per_h.data, count_s_per_h)
 
-                batch_acc_zs.update(table_length_batch, correct_zs_per_h.data, count_zs_per_h)
+            # if (phase in ['testI', 'testO']) and (args.training_content == 'h+xy+z'):
+            #     p_seq = torch.argmax(p_seq, dim=2)[correct_zmask==1]
+            #     correct_zs_per_h = []
+            #     count_zs_per_h = count_z_per_h
+            #     for iib in range(len(batch['spH_list'])):
+            #         valid_zs = find_valid_zs(batch['spH_prefix_list_info']['spH_prefix_list'][iib],
+            #                                 batch['xy_seq_list_info'    ]['xy_seq_list'    ][iib],
+            #                                 pad_token=tokens['pad'], predict_token=tokens['>'], comma_token=tokens[','])
+            #         if p_seq[iib] in valid_zs:
+            #             correct_zs_per_h.append(1)
+            #         else:
+            #             correct_zs_per_h.append(0)
+            #     correct_zs_per_h = torch.tensor(correct_zs_per_h)
+            #     batch_acc_zs.update(table_length_batch, correct_zs_per_h.data, count_zs_per_h)
 
-            #pbar.set_description(f"{phase}-{icl_sampling} {len(strings[phase])} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f}")
-            pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} acc_zs={batch_acc_zs.avg[0]:.3f}")
+            pbar.set_description(f"{phase}-{icl_sampling} acc_z={batch_acc_z.avg[0]:.3f}")
+            #pbar.set_description(f"{phase}-{icl_sampling} loss={batch_loss.avg[0]:.3f} acc_x={batch_acc_x.avg[0]:.3f} acc_y={batch_acc_y.avg[0]:.3f} acc_z={batch_acc_z.avg[0]:.3f} acc_zs={batch_acc_zs.avg[0]:.3f}")
 
         ###print(batch_numx.avg[0])
 
         wandb_info={}
         for table_length in table_lengths:
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/loss__{table_length}"] = batch_loss.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
+            ##wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_x_{table_length}"] = batch_acc_x.avg[table_length]
+            ##wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_y_{table_length}"] = batch_acc_y.avg[table_length]
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_z_{table_length}"] = batch_acc_z.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
-            wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_zs_{table_length}"] = batch_acc_zs.avg[table_length]
+            ##wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_h_{table_length}"] = batch_acc_h.avg[table_length]
+            ##wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_s_{table_length}"] = batch_acc_s.avg[table_length]
+            ##wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}/acc_zs_{table_length}"] = batch_acc_zs.avg[table_length]
         for pos in range(args.icl_k):
             wandb_info[f"{phase}-{icl_sampling}{l2s(iid_probability)}_icl/pos{pos+1}"] = batch_acc_icl.avg[pos+1]
         
@@ -476,7 +469,7 @@ if 1:
     if args.HEAD == 'FourGeneralization':
         name = f'model={args.modelName} seed={args.random_seed}'
     if args.HEAD == 'NUMTRAIN':
-        name = f'num={args.num_training_tables} seed={args.random_seed}'
+        name = f'model={args.modelName} num={args.num_training_tables} seed={args.random_seed}'
     if args.wandb:
         wandb.login(key='0e030fcc130348fb3127f6140ac82c773fa4b4d9')
         # if args.method in ['normal', 'mix']:
@@ -486,7 +479,7 @@ if 1:
         #name = f'content={args.training_content} sparsity={args.num_training_hypotheses} seed={args.random_seed}'
         run = wandb.init(
             # Set the project where this run will be logged
-            project= f'{args.HEAD} {args.exp_name}',
+            project= f'{args.HEAD} {args.exp_name} numx={args.num_x}',
             name = name,
             entity = 'myhakureimu',
             dir='../wandb',
@@ -658,11 +651,11 @@ if 1:
     epoch = 0
     if epoch%args.epochs2test == 0:
         phase = 'testI'
-        wandb_test1_info = traintest_model(args, phase, table_lengths, testI_dmanager, model, optimizer, epoch=epoch)
-        wandb_test2_info = traintest_model(args, phase, table_lengths, opt_I_dmanager, model, optimizer, epoch=epoch)
+        wandb_test1_info = traintest_model(args, phase, table_lengths, opt_I_dmanager, model, optimizer, epoch=epoch)
+        wandb_test2_info = traintest_model(args, phase, table_lengths, testI_dmanager, model, optimizer, epoch=epoch)
         phase = 'testO'
-        wandb_test3_info = traintest_model(args, phase, table_lengths, testO_dmanager, model, optimizer, epoch=epoch)
-        wandb_test4_info = traintest_model(args, phase, table_lengths, opt_O_dmanager, model, optimizer, epoch=epoch)
+        wandb_test3_info = traintest_model(args, phase, table_lengths, opt_O_dmanager, model, optimizer, epoch=epoch)
+        wandb_test4_info = traintest_model(args, phase, table_lengths, testO_dmanager, model, optimizer, epoch=epoch)
     else:
         wandb_test1_info = {}
         wandb_test2_info = {}

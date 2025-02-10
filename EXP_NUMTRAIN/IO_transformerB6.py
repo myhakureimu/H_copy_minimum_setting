@@ -2,7 +2,7 @@ import numpy as np
 import os
 gpuIdxStr = '1'
 
-random_seed = 2026
+random_seed = 2024
 
 HEAD = 'NUMTRAIN'
 
@@ -10,7 +10,7 @@ training_content = 'h+xy+z'
 
 exp_name = 'IOHypothesis'
 
-icl_k, num_x, num_y = 5, 5, 2
+icl_k, num_x, num_y = 6, 6, 2
 
 num_training_hypotheses, num_training_tables = 0, 2**12
 
