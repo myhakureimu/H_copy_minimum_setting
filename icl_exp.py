@@ -25,7 +25,7 @@ parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--wandb', default=0, type=int)
 
 parser.add_argument('--HEAD', default='FourGeneralization', type=str)
-parser.add_argument('--exp_name', default='IOHypothesis', type=str)
+parser.add_argument('--exp_name', default='IOHypothesis+Size', type=str)
 parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z', 'h+xy', 'xy'])
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
@@ -35,11 +35,11 @@ parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z',
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=6, type=int)
+parser.add_argument('--num_x', default=5, type=int)
 parser.add_argument('--num_y', default=2, type=int)
 parser.add_argument('--num_training_hypotheses', default=0, type=int)
-parser.add_argument('--num_training_tables', default=2**14, type=int)
-parser.add_argument('--max_table_length', default=8, type=int)
+parser.add_argument('--num_training_tables', default=0, type=int)
+parser.add_argument('--max_table_length', default=16, type=int)
 # table_lengths
 #parser.add_argument('--split_based_on', default='table', type=str)
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
@@ -48,7 +48,7 @@ parser.add_argument('--random_seed', default=1, type=int, help='the seed used fo
 # test__info
 
 # H+ICL format for dataloadermanager
-parser.add_argument('--icl_k', default=6, type=int)
+parser.add_argument('--icl_k', default=5, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--sampling_disparity', default=1.0, type=float)

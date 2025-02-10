@@ -35,16 +35,16 @@ def get_config(args):
                     9: args.num_training_tables
                 }  # Number of train tables to sample per length
             else:
-                train_info = {7: 3000, 8: 3000, 9: 3000}  # Number of train tables to sample per length
+                train_info = {7: 4096, 8: 4096, 9: 4096}  # Number of train tables to sample per length
             testI_info = {
-                2: 120, 3: 300, 4: 300, 5: 300,
-                6: 300, 7: 300, 8: 300, 9: 300,
-                10:300, 11:300, 12:300, 14:120,
+                2: 120, 3: 512, 4: 512, 5: 512, 6: 512,
+                7: 512, 8: 512, 9: 512,
+                10:512, 11:512, 12:512, 13:512, 14:120,
                 }  # Number of train tables to sample per length
             testO_info = {
-                2: 120, 3: 300, 4: 300, 5: 300,
-                6: 300, 7: 300, 8: 300, 9: 300,
-                10:300, 11:300, 12:300, 14:120,
+                2: 120, 3: 512, 4: 512, 5: 512, 6: 512,
+                7: 512, 8: 512, 9: 512,
+                10:512, 11:512, 12:512, 13:512, 14:120,
                 }  # Number of train tables to sample per length
         else:
             raise Exception('Setting Not Found')
@@ -103,9 +103,9 @@ def get_config(args):
     #             else:
     #                 train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
     #             test__info = {
-    #                 2: 300, 3: 300,
-    #                 4: 300, 5: 300, 6: 300,
-    #                 7: 300, 8: 300, 9: 300, 10: 300, 11: 300, 12: 300}  # Number of train tables to sample per length
+    #                 2: 512, 3: 512,
+    #                 4: 512, 5: 512, 6: 512,
+    #                 7: 512, 8: 512, 9: 512, 10: 512, 11: 512, 12: 300}  # Number of train tables to sample per length
     #         else:
     #             raise Exception('Setting Not Found')
     #     else:
@@ -138,9 +138,9 @@ def get_config(args):
     #             else:
     #                 train_info = {4: 3000, 5: 3000, 6: 3000}  # Number of train tables to sample per length
     #             test__info = {
-    #                 2: 300, 3: 300,
-    #                 4: 300, 5: 300, 6: 300,
-    #                 7: 300, 8: 300, 9: 300, 10: 300, 11: 300, 12: 300}  # Number of train tables to sample per length
+    #                 2: 512, 3: 512,
+    #                 4: 512, 5: 512, 6: 512,
+    #                 7: 512, 8: 512, 9: 512, 10: 512, 11: 512, 12: 300}  # Number of train tables to sample per length
     #         else:
     #             raise Exception('Setting Not Found')
     #     else:
