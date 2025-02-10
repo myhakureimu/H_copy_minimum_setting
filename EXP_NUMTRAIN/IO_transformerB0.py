@@ -1,8 +1,8 @@
 import numpy as np
 import os
-gpuIdxStr = '3'
+gpuIdxStr = '0'
 
-for random_seed in [2023,2025]:
+for random_seed in [2024,2026]:
 
     HEAD = 'NUMTRAIN'
 
@@ -12,7 +12,7 @@ for random_seed in [2023,2025]:
 
     icl_k, num_x, num_y = 5, 5, 2
 
-    num_training_hypotheses, num_training_tables = 0, 2**8
+    num_training_hypotheses, num_training_tables = 0, 2**0
 
     max_table_length = 8
 

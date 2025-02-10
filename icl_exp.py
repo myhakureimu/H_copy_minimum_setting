@@ -82,7 +82,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 if args.HEAD == 'FourGeneralization':
     setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.random_seed}')
 if args.HEAD == 'NUMTRAIN':
-    setproctitle.setproctitle(f'{args.exp_name} {args.num_training_tables} {args.random_seed}')
+    setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.num_training_tables} {args.random_seed}')
 
 import torch
 import torch.nn as nn
