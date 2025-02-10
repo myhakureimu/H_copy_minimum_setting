@@ -5,12 +5,23 @@ def get_config(args):
             num_IO_h = [16, 16]  # 16 choose 8 = 12870
             if args.num_training_tables != 0:
                 train_info = {8: args.num_training_tables}  # Number of train tables to sample per length
-                testI_info = {8: 512}  # Number of test tables to sample per length
-                testO_info = {8: 512}  # Number of test tables to sample per length
+                testI_info = {8: 4096}  # Number of test tables to sample per length
+                testO_info = {8: 4096}  # Number of test tables to sample per length
             else:
                 train_info = {8: 4096}  # Number of train tables to sample per length
                 testI_info = {8: 4096}  # Number of test tables to sample per length
                 testO_info = {8: 4096}  # Number of test tables to sample per length
+        elif args.num_x == 6:
+            table_lengths = [8]
+            num_IO_h = [48, 16]  # 48 choose 4 = 194580
+            if args.num_training_tables != 0:
+                train_info = {8: args.num_training_tables}  # Number of train tables to sample per length
+                testI_info = {8: 256}  # Number of test tables to sample per length
+                testO_info = {8: 256}  # Number of test tables to sample per length
+            else:
+                train_info = {8: 4096}  # Number of train tables to sample per length
+                testI_info = {8: 256}  # Number of test tables to sample per length
+                testO_info = {8: 256}  # Number of test tables to sample per length
         else:
             raise Exception('Setting Not Found')
     elif args.exp_name == 'IOHypothesis+Size':

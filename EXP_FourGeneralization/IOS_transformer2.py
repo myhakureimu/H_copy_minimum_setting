@@ -25,14 +25,12 @@ prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
 depth_list = [8]
-
 lr_list = [0.00002]
+modelName_list = ['transformer'] #, 'nano']
 
 wd_list = [0.0005]
 
 batch_size_list = [16] #, 32, 64]
-
-modelName_list = ['transformer'] #, 'nano']
 
 loss_on_list = ['all'] #['all', 'y\&z']
 

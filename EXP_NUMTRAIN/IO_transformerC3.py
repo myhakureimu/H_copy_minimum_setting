@@ -10,9 +10,9 @@ training_content = 'h+xy+z'
 
 exp_name = 'IOHypothesis'
 
-icl_k, num_x, num_y = 5, 5, 2
+icl_k, num_x, num_y = 6, 6, 2
 
-num_training_hypotheses, num_training_tables = 0, 2**0
+num_training_hypotheses, num_training_tables = 0, 2**6
 
 max_table_length = 8
 

@@ -33,7 +33,7 @@ class HypothesisManager:
         self.testI_info = testI_info
         self.testO_info = testO_info
 
-        self.max_num_tables = 2**14
+        self.max_num_tables = 2**14+2**8
         """
         Initializes the HypothesisManager with the specified parameters.
 

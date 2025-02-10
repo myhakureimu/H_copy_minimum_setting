@@ -25,9 +25,7 @@ prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
 depth_list = [2, 2, 2]#, 8]
-
 lr_list = [0.001, 0.001, 0.0005]#, 0.00002]
-
 modelName_list = ['lstm', 'gru', 'mamba']#, 'dual'] #, 'nano']
 
 wd_list = [0.0005]
