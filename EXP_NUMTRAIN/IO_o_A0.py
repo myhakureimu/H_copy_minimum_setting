@@ -1,6 +1,6 @@
 import numpy as np
 import os
-gpuIdxStr = '1'
+gpuIdxStr = '0'
 
 for random_seed in [2023,2025]:
 
@@ -12,7 +12,7 @@ for random_seed in [2023,2025]:
 
     icl_k, num_x, num_y = 5, 5, 2
 
-    num_training_hypotheses, num_training_tables = 0, 2**2
+    num_training_hypotheses, num_training_tables = 0, 4**0
 
     max_table_length = 8
 

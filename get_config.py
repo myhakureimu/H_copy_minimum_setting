@@ -1,4 +1,5 @@
 def get_config(args):
+    print(args.exp_name)
     if args.exp_name == 'IOHypothesis':
         if args.num_x == 5:
             table_lengths = [8]
