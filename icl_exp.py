@@ -14,6 +14,7 @@ import torch.nn.functional as F
 from new_hmanager import HypothesisManager, DataloaderManager
 from find_valid_zs import find_valid_zs
 from get_config import get_config
+from InverseSqrtWithWarmupLR import InverseSqrtWithWarmupLR
 
 matplotlib.rc('text', usetex=True)
 matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath}')
@@ -67,6 +68,7 @@ parser.add_argument('--llm_max_length', default=512, type=int, help='maximum seq
 
 #optimization
 parser.add_argument('--lr', default=0.00002, type=float, help='initial model learning rate') #0.0005
+parser.add_argument('--use_scheduler', default=1, type=int, choices=[0,1])
 parser.add_argument('--wd', default=0.0005, type=float, help='weight decay hyperparameter (default: 0.00001)') #0.1
 parser.add_argument('--batch_size', default=16, type=int, help='mini-batch size (default: 64)') #32
 parser.add_argument('--n_steps', default=512, type=int, help='total number of training steps we want to run')
@@ -81,6 +83,8 @@ args.n_steps = int(1024 * 16 / args.batch_size)
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 if args.HEAD == 'FourGeneralization':
     setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.random_seed}')
+if args.HEAD == 'HyperSearch':
+    setproctitle.setproctitle(f'{args.exp_name} {args.use_scheduler} {args.lr}')
 if args.HEAD == 'NUMTRAIN':
     setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.num_training_tables} {args.random_seed}')
 
@@ -468,6 +472,8 @@ if 1:
     # wandb
     if args.HEAD == 'FourGeneralization':
         name = f'model={args.modelName} seed={args.random_seed}'
+    if args.HEAD == 'HyperSearch':
+        name = f'lr={args.lr} scheduler={args.scheduler} seed={args.random_seed}'
     if args.HEAD == 'NUMTRAIN':
         name = f'model={args.modelName} num={args.num_training_tables} seed={args.random_seed}'
     if args.wandb:
@@ -512,6 +518,7 @@ if 1:
                 'llm_max_length': args.llm_max_length,
 
                 'lr': args.lr,
+                'use_scheduler': args.use_scheduler,
                 'wd': args.wd,
                 'batch_size': args.batch_size,
                 'n_steps': args.n_steps,
@@ -547,6 +554,7 @@ if 1:
              +'_'+ 'heads='+str(args.num_heads) \
              +'_'+ 'llm_max_length'+str(args.llm_max_length)
     optim_hypers = 'lr='+str(args.lr) \
+             +'_'+ 'use_scheduler='+str(args.use_scheduler) \
              +'_'+ 'wd='+str(args.wd) \
              +'_'+ 'BS='+str(args.batch_size) \
              +'_'+ 'Step='+str(args.n_steps) \
@@ -645,8 +653,9 @@ if 1:
     #print(f"Total number of parameters: {total_params}")
     #print(model)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd, betas = (0.9, 0.999))
-    
-    
+    if args.use_scheduler == True:
+        scheduler = InverseSqrtWithWarmupLR(optimizer, warmup_epochs=64, base_lr=args.lr)
+
     # print('******** EP = ' +str(0)+ ' / ' +str(args.epochs)+ ' *******')
     epoch = 0
     if epoch%args.epochs2test == 0:
@@ -679,6 +688,8 @@ if 1:
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
         #print(model._read_out.weight.data)
         #print(table_lengths)
+        if args.use_scheduler:
+            scheduler.step()
         if 1:#epoch!=0: #train
             phase = 'train'
             wandb_train_info = traintest_model(args, phase, table_lengths, train_dmanager, model, optimizer, epoch=epoch)
@@ -702,8 +713,10 @@ if 1:
         combined_metrics.update(wandb_test2_info)
         combined_metrics.update(wandb_test3_info)
         combined_metrics.update(wandb_test4_info)
+
         if args.wandb:
             combined_metrics['global_step'] = epoch
+            combined_metrics['lr'] = optimizer.param_groups[0]['lr']
             wandb.log(combined_metrics, step=epoch)
             if epoch%args.epochs2test == 0:
                 with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
@@ -718,17 +731,3 @@ if 1:
             dele_path = folder + f'EP={epoch-2}'
             if os.path.exists(dele_path):
                 os.remove(dele_path)
-        
-        # import pickle 
-
-        # with open('strings.pkl', 'wb') as f:
-        #     pickle.dump(strings, f)
-
-        if 0:
-            phase = 'test_'
-            wandb_valid_info = traintest_model(args, phase, table_lengths, opt___dmanager, model, optimizer, epoch=epoch)
-            if args.wandb:
-                wandb_valid_info['global_step'] = epoch
-                wandb.log(wandb_valid_info, step=epoch, commit=False)
-            
-          
