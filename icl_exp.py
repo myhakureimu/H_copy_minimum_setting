@@ -473,7 +473,7 @@ if 1:
     if args.HEAD == 'FourGeneralization':
         name = f'model={args.modelName} seed={args.random_seed}'
     if args.HEAD == 'HyperSearch':
-        name = f'lr={args.lr} scheduler={args.scheduler} seed={args.random_seed}'
+        name = f'lr={args.lr} scheduler={args.use_scheduler} seed={args.random_seed}'
     if args.HEAD == 'NUMTRAIN':
         name = f'model={args.modelName} num={args.num_training_tables} seed={args.random_seed}'
     if args.wandb:
