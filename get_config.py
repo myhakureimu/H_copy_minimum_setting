@@ -9,7 +9,7 @@ def get_config(args):
                 testI_info = {8: 512}  # Number of test tables to sample per length
                 testO_info = {8: 512}  # Number of test tables to sample per length
             else:
-                train_info = {8: 4096}  # Number of train tables to sample per length
+                train_info = {8: 12358}  # Number of train tables to sample per length
                 testI_info = {8: 512}  # Number of test tables to sample per length
                 testO_info = {8: 512}  # Number of test tables to sample per length
         elif args.num_x == 6:

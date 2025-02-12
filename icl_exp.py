@@ -87,6 +87,17 @@ if args.HEAD == 'HyperSearch':
     setproctitle.setproctitle(f'{args.exp_name} {args.use_scheduler} {args.lr}')
 if args.HEAD == 'NUMTRAIN':
     setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.num_training_tables} {args.random_seed}')
+if args.HEAD == 'ICL':
+    setproctitle.setproctitle(f'{args.exp_name} {args.training_content} {args.random_seed}')
+
+if args.HEAD == 'FourGeneralization':
+    name = f'model={args.modelName} seed={args.random_seed}'
+if args.HEAD == 'HyperSearch':
+    name = f'lr={args.lr} scheduler={args.use_scheduler} seed={args.random_seed}'
+if args.HEAD == 'NUMTRAIN':
+    name = f'model={args.modelName} num={args.num_training_tables} seed={args.random_seed}'
+if args.HEAD == 'ICL':
+    name = f'content={args.training_content} seed={args.random_seed}'
 
 import torch
 import torch.nn as nn
@@ -470,12 +481,6 @@ if 1:
 
 
     # wandb
-    if args.HEAD == 'FourGeneralization':
-        name = f'model={args.modelName} seed={args.random_seed}'
-    if args.HEAD == 'HyperSearch':
-        name = f'lr={args.lr} scheduler={args.use_scheduler} seed={args.random_seed}'
-    if args.HEAD == 'NUMTRAIN':
-        name = f'model={args.modelName} num={args.num_training_tables} seed={args.random_seed}'
     if args.wandb:
         wandb.login(key='0e030fcc130348fb3127f6140ac82c773fa4b4d9')
         # if args.method in ['normal', 'mix']:
