@@ -1,8 +1,8 @@
 import os
 
 for i in range(0,4):
-    old_filename = f"EXP_DP/IO_1_{i}.py"
-    new_filename = f"EXP_DP/IO_9_{i}.py"
+    old_filename = f"EXP_Diversity/IO_1h16_{i}.py"
+    new_filename = f"EXP_Diversity/IO_1h24_{i}.py"
     
     # Read contents of A{i}.py
     with open(old_filename, 'r') as f:
@@ -10,8 +10,8 @@ for i in range(0,4):
     
     # Replace the line gpuIdxStr = '1' with gpuIdxStr = '2'
     new_content = content.replace(
-        "sampling_disparity = 1.0",
-        "sampling_disparity = 9.0"
+        "num_training_hypotheses, num_training_tables = 16, 0",
+        "num_training_hypotheses, num_training_tables = 24, 0"
     )
     
     # Write to B{i}.py

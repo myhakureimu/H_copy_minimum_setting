@@ -276,7 +276,11 @@ class HypothesisManager:
         for length in lengths:
             if train_info.get(length, 0) != 0:
                 self.train_tables[length] = self.I_tables[length][:train_info.get(length, 0)]
+            #print(train_info.get(length, 0))
+            #print(testI_info.get(length, 0))
             self.testI_tables[length] = self.I_tables[length][-testI_info.get(length, 0):]
+            #print(self.train_tables)
+            #print(self.testI_tables)
             self.testO_tables[length] = self.O_tables[length][:testO_info.get(length, 0)]
 
     def _sample_train_tables(self):

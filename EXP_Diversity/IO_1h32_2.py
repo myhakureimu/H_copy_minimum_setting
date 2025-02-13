@@ -1,0 +1,47 @@
+import numpy as np
+import os
+gpuIdxStr = '2'
+
+random_seed = 2023+int(gpuIdxStr)
+
+for training_content in ['h+xy', 'xy']:
+
+    HEAD, exp_name = 'Diversity', 'IOHypothesis'
+
+    num_x, num_y = 6, 2
+    icl_k, max_table_length = 12, 8
+    num_training_hypotheses, num_training_tables = 32, 0
+
+    epochs = 768
+
+    prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs {epochs} \
+            --HEAD {HEAD} --training_content {training_content} --exp_name {exp_name} \
+            --icl_k {icl_k} --num_x {num_x} --num_y {num_y} \
+            --num_training_hypotheses {num_training_hypotheses} \
+            --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
+
+    depth_list = [8]
+    lr_list = [0.00005]
+    use_scheduler = 1
+    modelName_list = ['transformer'] #, 'nano']
+
+    wd_list = [0.0005]
+    batch_size_list = [16] #, 32, 64]
+    loss_on_list = ['all'] #['all', 'y\&z']
+    icl_sampling_list = ['iid']
+    h_prefix_format_list = [0]
+    icl_y_noise_list = [0.0]
+    for depth, lr, modelName in zip(depth_list, lr_list, modelName_list):
+        for wd in wd_list:
+            for batch_size in batch_size_list:
+                for loss_on in loss_on_list:
+                    for icl_sampling in icl_sampling_list:
+                        for h_prefix_format in h_prefix_format_list:
+                            for icl_y_noise in icl_y_noise_list:
+                                hyper = f'--depth {depth} --lr {lr} --use_scheduler {use_scheduler} --wd {wd} --batch_size {batch_size} --modelName {modelName}\
+                                        --loss_on {loss_on} --icl_sampling {icl_sampling} --h_prefix_format {h_prefix_format} --icl_y_noise {icl_y_noise}'
+                                cl = f'{prefix} {hyper}'
+                                #print(prefix)
+                                #print(hyper)
+                                #print(cl)
+                                os.system(cl)

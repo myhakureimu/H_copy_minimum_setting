@@ -25,9 +25,9 @@ parser = argparse.ArgumentParser(description='PyTorch In-context Learning Traini
 parser.add_argument('--gpu', default='0', type=str, help='which gpus to use')
 parser.add_argument('--wandb', default=0, type=int)
 
-parser.add_argument('--HEAD', default='FourGeneralization', type=str)
-parser.add_argument('--exp_name', default='IOHypothesis+Size', type=str)
-parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z', 'h+xy', 'xy'])
+parser.add_argument('--HEAD', default='Diversity', type=str)
+parser.add_argument('--exp_name', default='IOHypothesis', type=str)
+parser.add_argument('--training_content', default='h+xy', choices = ['h+xy+z', 'h+xy', 'xy'])
 #arxived args
 # parser.add_argument('--SigmaRe', default=2, type=int)
 # parser.add_argument('--NormAtt', default=0, type=int)
@@ -36,11 +36,11 @@ parser.add_argument('--training_content', default='h+xy+z', choices = ['h+xy+z',
 
 # H setting for init hypothesismanager
 ''' parser.add_argument('--mode', default='binary', type=str, choices=['binary', 'permutation'])  #binary only '''
-parser.add_argument('--num_x', default=5, type=int)
+parser.add_argument('--num_x', default=6, type=int)
 parser.add_argument('--num_y', default=2, type=int)
-parser.add_argument('--num_training_hypotheses', default=0, type=int)
-parser.add_argument('--num_training_tables', default=0, type=int)
-parser.add_argument('--max_table_length', default=16, type=int)
+parser.add_argument('--num_training_hypotheses', default=8, type=int)
+parser.add_argument('--num_training_tables', default=1, type=int)
+parser.add_argument('--max_table_length', default=8, type=int)
 # table_lengths
 #parser.add_argument('--split_based_on', default='table', type=str)
 parser.add_argument('--random_seed', default=1, type=int, help='the seed used for torch & numpy')
@@ -49,7 +49,7 @@ parser.add_argument('--random_seed', default=1, type=int, help='the seed used fo
 # test__info
 
 # H+ICL format for dataloadermanager
-parser.add_argument('--icl_k', default=5, type=int)
+parser.add_argument('--icl_k', default=12, type=int)
 parser.add_argument('--loss_on', default='all', type=str, choices=['all', 'icl&>z', 'y&z', 'z'], help = 'all=prefix&icl&z, icl=x&y&>')
 parser.add_argument('--icl_sampling', default='iid', type=str, choices = ['ordered', 'shuffle', 'iid', 'optimal', 'mix'])
 parser.add_argument('--sampling_disparity', default=1.0, type=float)
@@ -91,6 +91,8 @@ if args.HEAD == 'ICL':
     setproctitle.setproctitle(f'{args.exp_name} {args.training_content} {args.random_seed}')
 if args.HEAD == 'DP':
     setproctitle.setproctitle(f'{args.exp_name} {args.sampling_disparity} {args.random_seed}')
+if args.HEAD == 'Diversity':
+    setproctitle.setproctitle(f'{args.exp_name} {args.training_content} {args.num_training_hypotheses} {args.random_seed}')
 
 if args.HEAD == 'FourGeneralization':
     name = f'model={args.modelName} seed={args.random_seed}'
@@ -102,6 +104,8 @@ if args.HEAD == 'ICL':
     name = f'content={args.training_content} seed={args.random_seed}'
 if args.HEAD == 'DP':
     name = f'DP={args.sampling_disparity} seed={args.random_seed}'
+if args.HEAD == 'Diversity':
+    name = f'DP={args.training_content} num={args.num_training_hypotheses} seed={args.random_seed}'
 
 import torch
 import torch.nn as nn

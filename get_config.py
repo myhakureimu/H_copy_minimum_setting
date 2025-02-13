@@ -14,14 +14,14 @@ def get_config(args):
                 testO_info = {8: 512}  # Number of test tables to sample per length
         elif args.num_x == 6:
             table_lengths = [8]
-            num_IO_h = [48, 16]  # 48 choose 4 = 194580
+            num_IO_h = [args.num_training_hypotheses, 16]  # 48 choose 4 = 194580
             if args.num_training_tables != 0:
                 train_info = {8: args.num_training_tables}  # Number of train tables to sample per length
-                testI_info = {8: 512}  # Number of test tables to sample per length
+                testI_info = {8: 0}  # Number of test tables to sample per length
                 testO_info = {8: 512}  # Number of test tables to sample per length
             else:
-                train_info = {8: 4096}  # Number of train tables to sample per length
-                testI_info = {8: 512}  # Number of test tables to sample per length
+                train_info = {8: 12358}  # Number of train tables to sample per length
+                testI_info = {8: 0}  # Number of test tables to sample per length
                 testO_info = {8: 512}  # Number of test tables to sample per length
         else:
             raise Exception('Setting Not Found')
