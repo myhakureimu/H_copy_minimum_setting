@@ -1,7 +1,7 @@
 import shutil
 
 # Source file
-prefix = 'EXP_FourGeneralization/IO_'
+prefix = 'EXP_DP/IO_1_'
 source_file = f'{prefix}0.py'
 
 # Copy the file to run1.py through run8.py, overwriting if necessary

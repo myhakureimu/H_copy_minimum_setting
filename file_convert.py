@@ -1,8 +1,8 @@
 import os
 
 for i in range(0,4):
-    old_filename = f"EXP_FourGeneralization/IO_{i}.py"
-    new_filename = f"EXP_FourGeneralization/IOS_{i}.py"
+    old_filename = f"EXP_DP/IO_1_{i}.py"
+    new_filename = f"EXP_DP/IO_9_{i}.py"
     
     # Read contents of A{i}.py
     with open(old_filename, 'r') as f:
@@ -10,8 +10,8 @@ for i in range(0,4):
     
     # Replace the line gpuIdxStr = '1' with gpuIdxStr = '2'
     new_content = content.replace(
-        "HEAD, exp_name = 'ICL', 'IOHypothesis'",
-        "HEAD, exp_name = 'ICL', 'IOHypothesis+Size'"
+        "sampling_disparity = 1.0",
+        "sampling_disparity = 9.0"
     )
     
     # Write to B{i}.py
