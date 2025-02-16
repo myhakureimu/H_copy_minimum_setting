@@ -1,7 +1,7 @@
 import shutil
 
 # Source file
-prefix = 'EXP_Diversity/IO_1h8_'
+prefix = 'EXP_FourGeneralization/IO_other_L8_lr2_'
 source_file = f'{prefix}0.py'
 
 # Copy the file to run1.py through run8.py, overwriting if necessary

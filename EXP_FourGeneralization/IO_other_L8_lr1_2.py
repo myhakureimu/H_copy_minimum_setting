@@ -1,6 +1,6 @@
 import numpy as np
 import os
-gpuIdxStr = '3'
+gpuIdxStr = '2'
 
 random_seed = 2023+int(gpuIdxStr)
 
@@ -20,10 +20,10 @@ prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
         --num_training_hypotheses {num_training_hypotheses} \
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
-depth_list = [8]
-lr_list = [0.0002]
 use_scheduler = 1
-modelName_list = ['transformer'] #, 'nano']
+depth_list = [8, 8]#, 2]#, 8]
+lr_list = [0.001, 0.001]#, 0.0005]#, 0.00002]
+modelName_list = ['lstm', 'gru']#, 'mamba']#, 'dual'] #, 'nano']
 
 wd_list = [0.0005]
 batch_size_list = [16] #, 32, 64]
