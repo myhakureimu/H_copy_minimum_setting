@@ -20,10 +20,10 @@ for gpuIdxStr in ['0', '2']:
             --num_training_hypotheses {num_training_hypotheses} \
             --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
-    depth_list = [2]
-    lr_list = [0.0005]
+    depth_list = [8]
+    lr_list = [0.0002]
     use_scheduler = 1
-    modelName_list = ['mamba'] #, 'nano']
+    modelName_list = ['transformer'] #, 'nano']
 
     wd_list = [0.0005]
     batch_size_list = [16] #, 32, 64]

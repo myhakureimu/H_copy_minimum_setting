@@ -105,7 +105,7 @@ if args.HEAD == 'ICL':
 if args.HEAD == 'DP':
     name = f'DP={args.sampling_disparity} seed={args.random_seed}'
 if args.HEAD == 'Diversity':
-    name = f'DP={args.training_content} num={args.num_training_hypotheses} seed={args.random_seed}'
+    name = f'content={args.training_content} num={args.num_training_hypotheses} seed={args.random_seed}'
 
 import torch
 import torch.nn as nn
