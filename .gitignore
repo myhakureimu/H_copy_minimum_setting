@@ -2,6 +2,5 @@ __pycache__/
 *.pyc
 saved/
 saved4plot/
-arXiv/
 ec2_ssh/
 plot/

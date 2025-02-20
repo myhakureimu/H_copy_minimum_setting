@@ -21,7 +21,7 @@ prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wan
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 
 depth_list = [8]
-lr_list = [0.00005]
+lr_list = [0.0002]
 use_scheduler = 1
 modelName_list = ['transformer'] #, 'nano']
 

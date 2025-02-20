@@ -694,8 +694,8 @@ if 1:
     if args.wandb:
         combined_metrics['global_step'] = epoch
         wandb.log(combined_metrics, step=epoch)
-        # with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
-        #     pickle.dump(combined_metrics, f)
+        with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
+            pickle.dump(combined_metrics, f)
 
     for epoch in range(1, args.epochs+1):
         print('******** EP = ' +str(epoch)+ ' / ' +str(args.epochs)+ ' *******')
@@ -731,9 +731,9 @@ if 1:
             combined_metrics['global_step'] = epoch
             combined_metrics['lr'] = optimizer.param_groups[0]['lr']
             wandb.log(combined_metrics, step=epoch)
-            # if epoch%args.epochs2test == 0:
-            #     with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
-            #         pickle.dump(combined_metrics, f)
+            if epoch%args.epochs2test == 0:
+                with open(f'{pkl_folder}/{epoch}.pkl', 'wb') as f:
+                    pickle.dump(combined_metrics, f)
         save_path = folder + f'EP={epoch}'
         print(save_path)
         torch.save({
