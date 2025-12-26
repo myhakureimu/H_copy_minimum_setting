@@ -56,7 +56,7 @@ parser.add_argument('--sampling_disparity', default=1.0, type=float)
 parser.add_argument('--icl_y_noise', default=0.0, type=float)
 parser.add_argument('--h_prefix_format', default=0, type=int, choices=[0,1])
 parser.add_argument('--mix_prob_train1', default=0.5, type=float)
-
+parser.add_argument('--H_noise', default=2, type=int)
 
 # model setting
 parser.add_argument('--modelName', default='transformer', type=str, choices=['transformer', 'mamba', 'lstm', 'gru'])
@@ -89,6 +89,10 @@ if args.HEAD == 'NUMTRAIN':
     setproctitle.setproctitle(f'{args.exp_name} {args.modelName} {args.num_training_tables} {args.random_seed}')
 if args.HEAD == 'ICL':
     setproctitle.setproctitle(f'{args.exp_name} {args.training_content} {args.random_seed}')
+if args.HEAD == 'num_ICL':
+    setproctitle.setproctitle(f'{args.exp_name} {args.icl_k} {args.random_seed}')
+if args.HEAD == 'H_noise':
+    setproctitle.setproctitle(f'{args.exp_name} {args.H_noise} {args.random_seed}')
 if args.HEAD == 'DP':
     setproctitle.setproctitle(f'{args.exp_name} {args.sampling_disparity} {args.random_seed}')
 if args.HEAD == 'Diversity':
@@ -102,6 +106,10 @@ if args.HEAD == 'NUMTRAIN':
     name = f'model={args.modelName} num={args.num_training_tables} seed={args.random_seed}'
 if args.HEAD == 'ICL':
     name = f'content={args.training_content} seed={args.random_seed}'
+if args.HEAD == 'num_ICL':
+    name = f'content={args.icl_k} seed={args.random_seed}'
+if args.HEAD == 'H_noise':
+    name = f'content={args.H_noise} seed={args.random_seed}'
 if args.HEAD == 'DP':
     name = f'DP={args.sampling_disparity} seed={args.random_seed}'
 if args.HEAD == 'Diversity':
@@ -242,7 +250,7 @@ def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoc
     batch_acc_zs = AverageMeter(table_lengths)
     if phase == 'train':
         model.train()
-    if phase in ['testI','testO']:
+    if phase in ['testI', 'testO']:
         model.eval()
 
     if phase in ['test1', 'test2', 'test4', 'test8']:
@@ -261,7 +269,7 @@ def traintest_model(args, phase, table_lengths, dmanager, model, optimizer, epoc
             spH_prefix_zmask = torch.stack(batch['spH_prefix_list_info']['spH_prefix_zmask_list']).cuda().to(torch.float32)
             spH_prefix_hmask = torch.stack(batch['spH_prefix_list_info']['spH_prefix_hmask_list']).cuda().to(torch.float32)
             spH_prefix_smask = torch.stack(batch['spH_prefix_list_info']['spH_prefix_smask_list']).cuda().to(torch.float32)
-            
+                        
             xy_seq       = torch.stack(batch['xy_seq_list_info']['xy_seq_list'      ]).cuda().to(torch.long)
             xy_seq_xmask = torch.stack(batch['xy_seq_list_info']['xy_seq_xmask_list']).cuda().to(torch.float32)
             xy_seq_ymask = torch.stack(batch['xy_seq_list_info']['xy_seq_ymask_list']).cuda().to(torch.float32)

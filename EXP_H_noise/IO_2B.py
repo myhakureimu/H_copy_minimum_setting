@@ -1,22 +1,22 @@
 import numpy as np
 import os
-gpuIdxStr = '0'
+gpuIdxStr = '1'
 
 random_seed = 2023+int(gpuIdxStr)
 
-training_content = 'h+xy'
+training_content = 'h+xy+z'
 
-HEAD, exp_name = 'ICL', 'IOHypothesis'
+HEAD, exp_name = 'H_noise', 'IOHypothesis'
 
-num_x, num_y = 5, 2
-icl_k, max_table_length = 0, 8
+num_x, num_y, H_noise = 5, 2, 2
+icl_k, max_table_length = 6, 8
 num_training_hypotheses, num_training_tables = 0, 0
 
 epochs = 768
 
 prefix = f'python icl_exp.py --gpu {gpuIdxStr} --random_seed {random_seed} --wandb 1 --epochs {epochs} \
         --HEAD {HEAD} --training_content {training_content} --exp_name {exp_name} \
-        --icl_k {icl_k} --num_x {num_x} --num_y {num_y} \
+        --icl_k {icl_k} --num_x {num_x} --num_y {num_y} --H_noise {H_noise}\
         --num_training_hypotheses {num_training_hypotheses} \
         --max_table_length {max_table_length} --num_training_tables {num_training_tables}'
 

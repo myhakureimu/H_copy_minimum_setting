@@ -1,15 +1,15 @@
 import numpy as np
 import os
-gpuIdxStr = '0'
+gpuIdxStr = '1'
 
 random_seed = 2023+int(gpuIdxStr)
 
-training_content = 'h+xy'
+training_content = 'h+xy+z'
 
-HEAD, exp_name = 'ICL', 'IOHypothesis'
+HEAD, exp_name = 'num_ICL', 'IOHypothesis'
 
 num_x, num_y = 5, 2
-icl_k, max_table_length = 0, 8
+icl_k, max_table_length = 4, 8
 num_training_hypotheses, num_training_tables = 0, 0
 
 epochs = 768

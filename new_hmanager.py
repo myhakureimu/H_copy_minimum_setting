@@ -368,8 +368,31 @@ class HypothesisManager:
 
         return I
 
+
+
+
+def flip_k_total_items(tensor, k):
+    tensor = tensor.clone()
+    bs, l = tensor.shape
+    num_elements = bs * l
+
+    k = min(k, num_elements)
+    
+    scores = torch.rand(num_elements, device=tensor.device)
+    _, indices_1d = scores.topk(k)
+
+    rows = indices_1d // l  # Integer division gives the row
+    cols = indices_1d % l   # Modulo gives the column
+ 
+    tensor[rows, cols] = 1 - tensor[rows, cols]
+    
+    return tensor
+    
+
+
 class DataloaderManager:
     def __init__(self, args, hmanager, n_steps, split, preshuffle, icl_sampling, iid_probability=None, icl_y_noise=None):
+        self.args = args
         self.h_prefix_format = args.h_prefix_format
         
         self.hmanager = hmanager
@@ -436,6 +459,8 @@ class DataloaderManager:
             spH_list = []
             z_list = []  # h_index_in_spH_list
             for H, hH_idx in zip(H_list, hH_idx_list):
+                if (self.split in ['testI','testO']) and self.args.H_noise > 0:
+                    H = flip_k_total_items(H, self.args.H_noise)
                 spH, Z = construct_shuffled_nanned_table(self.max_table_length, H, self.tokens['nan'], self.tokens['hH_Z'], preshuffle=self.preshuffle)
                 spH_list.append(spH)
                 z_list.append(Z[hH_idx])
